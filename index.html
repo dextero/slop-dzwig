@@ -1558,8 +1558,8 @@
     <button id="btn-share" title="Skopiuj link URL do bieżącej trasy i ustawień">🔗 Udostępnij</button>
     <button id="btn-photo" title="Tryb zdjęć bez HUD i zapis 4K PNG (klawisz P)">📷 Zdjęcie</button>
     <button id="btn-manual" title="Przejmij ręczne sterowanie dźwigiem: WASD + QE + Spacja (klawisz G)">🎮 Ręczny</button>
-    <button id="btn-audio" class="audio-prompt" title="Włącz/wyłącz dźwięk proceduralny (skrót: M)">
-      <span class="audio-icon">🔇</span>
+    <button id="btn-audio" class="active" title="Włącz/wyłącz dźwięk proceduralny (skrót: M)">
+      <span class="audio-icon">🔊</span>
       <span>Dźwięk</span>
       <span class="eq-bars" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
@@ -1848,9 +1848,9 @@
     function createAudioEngine() {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       let ctx = null;
-      let enabled = false;
+      let enabled = true;
       let masterVol = 0.75;
-      let userHasActivated = false;
+      let userHasActivated = true;
       let isTabHidden = false;
       let lastPaused = false;
       let activeBurstCount = 0;
@@ -2795,6 +2795,46 @@
           else if (!isTabHidden && enabled && ctx.state === 'suspended') ctx.resume().catch(() => {});
         }
       });
+
+      function tryUnlockAudio(e) {
+        if (!enabled) return;
+        // Don't race with explicit mute click or M key
+        if (e && e.target && (btnAudio.contains(e.target) || btnAudioHud.contains(e.target))) return;
+        if (e && e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;
+        if (!ctx) initGraph();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().then(() => {
+            syncMasterGain();
+            if (ctx && ctx.state === 'running') removeUnlockListeners();
+          }).catch(() => {});
+        } else if (ctx && ctx.state === 'running') {
+          syncMasterGain();
+          removeUnlockListeners();
+        }
+      }
+
+      const unlockEvents = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
+      function removeUnlockListeners() {
+        unlockEvents.forEach((ev) => window.removeEventListener(ev, tryUnlockAudio, true));
+      }
+
+      // Start audio automatically on page load; if browser autoplay policy suspends AudioContext,
+      // resume seamlessly on the user's very first interaction anywhere on the page.
+      if (enabled && AudioCtx) {
+        try {
+          initGraph();
+          syncMasterGain();
+          if (ctx && ctx.state === 'suspended') {
+            ctx.resume().then(() => {
+              syncMasterGain();
+              if (ctx && ctx.state === 'running') removeUnlockListeners();
+            }).catch(() => {});
+            unlockEvents.forEach((ev) => window.addEventListener(ev, tryUnlockAudio, { capture: true, passive: true }));
+          }
+        } catch (_) {
+          unlockEvents.forEach((ev) => window.addEventListener(ev, tryUnlockAudio, { capture: true, passive: true }));
+        }
+      }
 
       syncUI();
 
@@ -7978,6 +8018,13 @@
       controls.update();
       camera.updateMatrixWorld(true);
     };
+    window.__getControlSpeeds = () => ({
+      rotateSpeed: Math.round(controls.rotateSpeed * 1000) / 1000,
+      zoomSpeed: Math.round(controls.zoomSpeed * 1000) / 1000,
+      camAlt: Math.round(Math.max(0, camera.position.length() - EARTH_RADIUS) * 1000) / 1000,
+      camDist: Math.round(camera.position.distanceTo(controls.target) * 1000) / 1000,
+      targetLen: Math.round(controls.target.length() * 1000) / 1000
+    });
 
     // Mouse hover picker over celestial bodies (Sun, Moon, planets, DSOs, 5044 Hipparcos stars)
     const skyReticle = document.getElementById('sky-reticle');
@@ -9919,6 +9966,29 @@
         if (camera.position.length() < EARTH_RADIUS + minCamAlt) {
           camera.position.setLength(EARTH_RADIUS + minCamAlt);
         }
+
+        // Scale OrbitControls rotation & zoom speed dynamically with zoom altitude
+        // so dragging the globe stays silky and controllable even at extreme close-ups
+        const orbitAlt = Math.max(0.05, camera.position.length() - EARTH_RADIUS);
+        const orbitDist = camera.position.distanceTo(controls.target);
+        const surfacePivotBlend = THREE.MathUtils.clamp((controls.target.length() - 0.8) / 3.2, 0, 1);
+        const globeRotateSpeed = THREE.MathUtils.clamp(
+          0.025 + 0.675 * Math.pow(THREE.MathUtils.clamp(orbitAlt / 10.5, 0, 1.35), 0.92),
+          0.035,
+          0.85
+        );
+        const localRotateSpeed = THREE.MathUtils.clamp(
+          0.22 + 0.42 * THREE.MathUtils.clamp(orbitDist / 4.2, 0, 1),
+          0.22,
+          0.64
+        );
+        controls.rotateSpeed = THREE.MathUtils.lerp(globeRotateSpeed, localRotateSpeed, surfacePivotBlend);
+        controls.zoomSpeed = THREE.MathUtils.clamp(
+          0.48 + 0.40 * THREE.MathUtils.clamp(orbitAlt / 6.0, 0, 1),
+          0.48,
+          0.88
+        );
+
         controls.update();
       }
 
