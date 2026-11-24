@@ -1493,6 +1493,7 @@
       <button class="preset-chip" data-preset="WAW,LHR,JFK">Warszawa → Londyn → Nowy Jork</button>
       <button class="preset-chip" data-preset="WAW,DXB,HND,LAX,JFK,WAW">Dookoła świata (6)</button>
       <button class="preset-chip" data-preset="SFO,CAI,DXB,SYD">Cuda świata (4)</button>
+      <button class="preset-chip" data-preset="GDN,WAW,KRK">Polska (Żuraw → PKiN → Wawel)</button>
     </div>
     <div class="route-stops-list" id="route-stops-list"></div>
     <div class="airport-search-wrap">
@@ -4099,6 +4100,7 @@
 
     const holoRings = [];
     const radarBars = [];
+    const spinNodes = [];
     const blinkingBeacons = [];
     const redOnMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.25, 0.18), toneMapped: false });
     const redOffMat = new THREE.MeshBasicMaterial({ color: 0x450a0a });
@@ -4157,13 +4159,13 @@
       };
     }
 
-    // Tokyo: Cyberpunk Neon Skyscraper Complex (HDR emissive for UnrealBloomPass!)
-    function createCyberpunkTokyo(normal, scale = 1.0) {
+    // Tokyo (HND / NRT): Real-World Tokyo Tower (International Orange & White) + Mount Fuji + Torii Gate
+    function createTokyoTowerFuji(normal, scale = 1.0) {
       const s = Math.max(0.24, scale);
       const f = surfaceFrame(normal);
       const n = normal.clone()
-        .addScaledVector(f.north, 0.056 * s)
-        .addScaledVector(f.east, -0.058 * s)
+        .addScaledVector(f.north, 0.058 * s)
+        .addScaledVector(f.east, -0.062 * s)
         .normalize();
       const { quat } = surfaceFrame(n);
 
@@ -4172,90 +4174,98 @@
       g.quaternion.copy(quat);
       g.scale.setScalar(s);
 
-      const wc = document.createElement('canvas');
-      wc.width = 128;
-      wc.height = 256;
-      const wctx = wc.getContext('2d');
-      wctx.fillStyle = '#070b16';
-      wctx.fillRect(0, 0, 128, 256);
-      const neonColors = ['#00f5ff', '#ff2e93', '#a855f7', '#facc15', '#38bdf8'];
-      for (let row = 4; row < 250; row += 8) {
-        for (let col = 4; col < 122; col += 8) {
-          if (((row * 7 + col * 13) % 11) > 4) {
-            wctx.fillStyle = neonColors[(row + col) % neonColors.length];
-            wctx.fillRect(col, row, 5, 4);
-          }
-        }
+      const plazaMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.78, metalness: 0.22 });
+      const orangeMat = new THREE.MeshStandardMaterial({ color: 0xe63926, roughness: 0.38, metalness: 0.52 });
+      const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.34, metalness: 0.35 });
+      const deckGlow = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.32, 0.42), toneMapped: false });
+      const whiteGlow = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.95, 2.1), toneMapped: false });
+      const fujiSlopeMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.88, metalness: 0.08, flatShading: true });
+      const fujiSnowMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.55, metalness: 0.05, flatShading: true });
+      const toriiMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.48, metalness: 0.16 });
+
+      // Shiba Park base plaza
+      const plaza = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.29, 0.11, 18), plazaMat);
+      plaza.position.y = -0.015;
+      plaza.receiveShadow = true;
+      g.add(plaza);
+
+      // Tokyo Tower centered slightly front-right (tx = 0.05, tz = 0.04)
+      const tx = 0.048, tz = 0.045;
+      const footTown = new THREE.Mesh(new THREE.BoxGeometry(0.145, 0.055, 0.145), whiteMat);
+      footTown.position.set(tx, 0.058, tz);
+      footTown.castShadow = true;
+      g.add(footTown);
+
+      const legPts = [[-0.082, -0.082], [0.082, -0.082], [0.082, 0.082], [-0.082, 0.082]];
+      for (const [lx, lz] of legPts) {
+        const p0 = new THREE.Vector3(tx + lx, 0.04, tz + lz);
+        const p1 = new THREE.Vector3(tx + lx * 0.40, 0.34, tz + lz * 0.40);
+        const dir = new THREE.Vector3().subVectors(p1, p0);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.024, dir.length(), 6), orangeMat);
+        leg.position.copy(p0).addScaledVector(dir, 0.5);
+        leg.quaternion.setFromUnitVectors(UP, dir.normalize());
+        leg.castShadow = true;
+        g.add(leg);
       }
-      const winTex = new THREE.CanvasTexture(wc);
-      winTex.colorSpace = THREE.SRGBColorSpace;
 
-      const towerMat = new THREE.MeshStandardMaterial({
-        map: winTex,
-        emissiveMap: winTex,
-        emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 1.45,
-        roughness: 0.25,
-        metalness: 0.78
-      });
-      const darkObsidian = new THREE.MeshStandardMaterial({ color: 0x0a1020, roughness: 0.35, metalness: 0.85 });
+      // Main Deck (150m observation deck with warm Landmark Light glow)
+      const mainDeck = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.042, 0.105), whiteMat);
+      mainDeck.position.set(tx, 0.355, tz);
+      mainDeck.castShadow = true;
+      const mainRing = new THREE.Mesh(new THREE.BoxGeometry(0.110, 0.014, 0.110), deckGlow);
+      mainRing.position.set(tx, 0.356, tz);
+      g.add(mainDeck, mainRing);
 
-      const podium = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.32), darkObsidian);
-      podium.position.y = -0.02;
-      podium.castShadow = true;
-      podium.receiveShadow = true;
-      g.add(podium);
+      // Alternating International Orange & White upper tower bands (real aviation marking bands!)
+      const bands = [
+        { y: 0.44, h: 0.13, rTop: 0.032, rBot: 0.046, mat: whiteMat },
+        { y: 0.56, h: 0.12, rTop: 0.023, rBot: 0.032, mat: orangeMat },
+        { y: 0.67, h: 0.11, rTop: 0.016, rBot: 0.023, mat: whiteMat },
+        { y: 0.77, h: 0.10, rTop: 0.011, rBot: 0.016, mat: orangeMat }
+      ];
+      for (const b of bands) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(b.rTop, b.rBot, b.h, 4), b.mat);
+        seg.position.set(tx, b.y, tz);
+        seg.rotation.y = Math.PI / 4;
+        seg.castShadow = true;
+        g.add(seg);
+      }
 
-      const mainLower = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.44, 0.18), towerMat);
-      mainLower.position.set(-0.04, 0.22, 0);
-      mainLower.castShadow = true;
-      g.add(mainLower);
+      // Top Deck (250m) + tall broadcast antenna spire + blinking aviation beacon
+      const topDeck = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.028, 0.058), whiteMat);
+      topDeck.position.set(tx, 0.625, tz);
+      const topRing = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.010, 0.062), whiteGlow);
+      topRing.position.set(tx, 0.626, tz);
+      const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.008, 0.22, 6), whiteMat);
+      ant.position.set(tx, 0.92, tz);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), redOnMat);
+      tip.position.set(tx, 1.035, tz);
+      blinkingBeacons.push(tip);
+      g.add(topDeck, topRing, ant, tip);
 
-      const mainUpper = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.28, 0.13), towerMat);
-      mainUpper.position.set(-0.04, 0.56, 0);
-      mainUpper.castShadow = true;
-      g.add(mainUpper);
+      // Iconic Snow-Capped Mount Fuji rising behind Tokyo Tower (fx = -0.105, fz = -0.095)
+      const fx = -0.105, fz = -0.095;
+      const fujiBase = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.185, 0.22, 12), fujiSlopeMat);
+      fujiBase.position.set(fx, 0.13, fz);
+      fujiBase.castShadow = true;
+      fujiBase.receiveShadow = true;
+      const fujiSnow = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.066, 0.095, 12), fujiSnowMat);
+      fujiSnow.position.set(fx, 0.285, fz);
+      fujiSnow.castShadow = true;
+      g.add(fujiBase, fujiSnow);
 
-      const sideTower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.12), towerMat);
-      sideTower.position.set(0.11, 0.21, 0.04);
-      sideTower.castShadow = true;
-      g.add(sideTower);
-
-      // HDR Bloom neon materials (values > 1.0 bloom crisply at threshold 0.92)
-      const pinkNeon = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.28, 1.05), toneMapped: false });
-      const cyanNeon = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 1.85, 2.2), toneMapped: false });
-      const goldNeon = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.1, 1.65, 0.22), toneMapped: false });
-
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.05), cyanNeon);
-      bridge.position.set(0.04, 0.34, 0.02);
-      g.add(bridge);
-
-      const vStrip1 = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.52, 0.014), pinkNeon);
-      vStrip1.position.set(-0.132, 0.31, 0.092);
-      const vStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.42, 0.014), cyanNeon);
-      vStrip2.position.set(0.052, 0.26, 0.092);
-      const billboard = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.055, 0.014), pinkNeon);
-      billboard.position.set(-0.04, 0.44, 0.095);
-      const billboardSide = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.06, 0.11), goldNeon);
-      billboardSide.position.set(0.175, 0.29, 0.04);
-      g.add(vStrip1, vStrip2, billboard, billboardSide);
-
-      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.012, 0.22, 8), darkObsidian);
-      spire.position.set(-0.04, 0.80, 0);
-      const spireTip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), cyanNeon);
-      spireTip.position.set(-0.04, 0.91, 0);
-      const holoRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.11, 0.008, 8, 28),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 1.8, 2.2), transparent: true, opacity: 0.88, toneMapped: false })
-      );
-      holoRing.rotation.x = Math.PI / 2;
-      holoRing.position.set(-0.04, 0.74, 0);
-      holoRings.push(holoRing);
-      g.add(spire, spireTip, holoRing);
-
-      const neonLight = new THREE.PointLight(0xff2e93, 1.1, 2.4);
-      neonLight.position.set(0, 0.48, 0.15);
-      g.add(neonLight);
+      // Traditional Vermilion Torii Gate at the forecourt (gx = -0.10, gz = 0.115)
+      const gx = -0.10, gz = 0.115;
+      for (const side of [-0.032, 0.032]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.007, 0.095, 6), toriiMat);
+        post.position.set(gx + side, 0.085, gz);
+        g.add(post);
+      }
+      const kasagi = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.012, 0.016), toriiMat);
+      kasagi.position.set(gx, 0.132, gz);
+      const nuki = new THREE.Mesh(new THREE.BoxGeometry(0.084, 0.008, 0.011), toriiMat);
+      nuki.position.set(gx, 0.112, gz);
+      g.add(kasagi, nuki);
 
       routeGroup.add(g);
     }
@@ -5190,6 +5200,1277 @@
       g.add(sphinxBody, sphinxPaws, sphinxHead);
 
       routeGroup.add(g);
+    }
+
+    // Compact architectural primitive kit for global 3D landmarks (every created material/geometry is disposed cleanly by clearRouteGroup)
+    const LM = {
+      mat: (color, roughness = 0.65, metalness = 0.15, extra = null) =>
+        new THREE.MeshStandardMaterial({ color, roughness, metalness, ...(extra || {}) }),
+      glow: (r, g, b, extra = null) =>
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), toneMapped: false, ...(extra || {}) }),
+      plaza: (g, r = 0.24, color = 0x334155, segs = 16) => {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 0.03, 0.11, segs), LM.mat(color, 0.80, 0.18));
+        m.position.y = -0.015; m.receiveShadow = true; g.add(m); return m;
+      },
+      box: (g, w, h, d, x, y, z, mat, cast = true) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z); if (cast) m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+      },
+      cyl: (g, rt, rb, h, segs, x, y, z, mat, cast = true) => {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, segs), mat);
+        m.position.set(x, y, z); if (cast) m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+      },
+      cone: (g, r, h, segs, x, y, z, mat, cast = true) => {
+        const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, segs), mat);
+        m.position.set(x, y, z); if (cast) m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+      },
+      sph: (g, r, x, y, z, mat, segs = 14) => {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, segs, Math.max(8, segs - 2)), mat);
+        m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+      },
+      tor: (g, r, tube, x, y, z, mat, rotX = Math.PI / 2, segs = 24) => {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, segs), mat);
+        m.position.set(x, y, z); m.rotation.x = rotX; g.add(m); return m;
+      },
+      beacon: (g, x, y, z, r = 0.014) => {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), redOnMat);
+        b.position.set(x, y, z); blinkingBeacons.push(b); g.add(b); return b;
+      },
+      winMat: (baseHex, palette, emissiveHex, ei = 0.65, rough = 0.45, met = 0.35) => {
+        const tex = createFacadeWindowTex(baseHex, palette, 10, 22, 0.56);
+        return new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: new THREE.Color(emissiveHex), emissiveIntensity: ei, roughness: rough, metalness: met });
+      }
+    };
+
+    // 1. Gdańsk (GDN): Żuraw Gdański — Medieval Wooden Port Crane on the Motława Quay!
+    function createGdanskZuraw(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const water = LM.mat(0x0f3b57, 0.30, 0.35), brick = LM.mat(0x9a4635, 0.78, 0.08);
+      const wood = LM.mat(0x4a3121, 0.85, 0.06), roof = LM.mat(0x7c2d12, 0.72, 0.10);
+      const quay = LM.mat(0x475569, 0.82, 0.14), warm = LM.glow(1.85, 1.38, 0.55);
+      LM.box(g, 0.44, 0.09, 0.28, 0, -0.015, 0, water, false);
+      LM.box(g, 0.42, 0.055, 0.16, 0, 0.045, -0.05, quay);
+      // Twin massive semicircular-style brick flanking towers
+      for (const sx of [-0.095, 0.095]) {
+        LM.cyl(g, 0.052, 0.058, 0.28, 12, sx, 0.19, -0.02, brick);
+        LM.cone(g, 0.060, 0.105, 12, sx, 0.38, -0.02, roof);
+      }
+      // Iconic projecting dark-timber medieval crane housing overhanging the river
+      LM.box(g, 0.125, 0.21, 0.11, 0, 0.24, 0.015, wood);
+      LM.box(g, 0.105, 0.15, 0.135, 0, 0.35, 0.055, wood);
+      const topRoof = LM.cone(g, 0.11, 0.11, 4, 0, 0.47, 0.045, roof);
+      topRoof.rotation.y = Math.PI / 4;
+      // Timber boom + hanging winch rope & iron hook over the water!
+      LM.box(g, 0.016, 0.016, 0.09, 0, 0.39, 0.135, wood);
+      LM.cyl(g, 0.0025, 0.0025, 0.22, 5, 0, 0.275, 0.17, LM.mat(0x94a3b8, 0.4, 0.7));
+      LM.tor(g, 0.014, 0.004, 0, 0.16, 0.17, LM.mat(0xf59e0b, 0.35, 0.8), 0, 12);
+      // Warm quay lantern glow
+      LM.box(g, 0.06, 0.05, 0.01, 0, 0.11, 0.032, warm, false);
+      routeGroup.add(g);
+    }
+
+    // 2. Kraków (KRK): Wawel Royal Castle & Cathedral with Golden Sigismund Dome
+    function createKrakowWawel(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const hill = LM.mat(0x4d6b45, 0.90, 0.05), limestone = LM.mat(0xe6dcc5, 0.68, 0.10);
+      const brick = LM.mat(0xa84332, 0.75, 0.10), roof = LM.mat(0xb44c33, 0.70, 0.12);
+      const copper = LM.mat(0x2d7a6e, 0.42, 0.55), gold = LM.mat(0xfbbf24, 0.22, 0.88, { emissive: new THREE.Color(0xd97706), emissiveIntensity: 0.42 });
+      const win = LM.winMat('#ded3ba', ['#fef3c7', '#fde68a', '#fbbf24'], 0xffd580, 0.62, 0.6, 0.12);
+      // Wawel limestone hill bastion
+      LM.cyl(g, 0.23, 0.29, 0.14, 14, 0, 0.01, 0, hill);
+      LM.cyl(g, 0.21, 0.23, 0.055, 14, 0, 0.095, 0, brick);
+      // Renaissance Royal Palace wings + terracotta roofs
+      LM.box(g, 0.23, 0.11, 0.12, 0.04, 0.165, -0.02, win);
+      const pRoof = LM.cone(g, 0.14, 0.075, 4, 0.04, 0.255, -0.02, roof);
+      pRoof.scale.set(1.3, 1, 0.75); pRoof.rotation.y = Math.PI / 4;
+      // Wawel Cathedral + iconic Golden Sigismund (Zygmunt) Chapel Dome!
+      LM.box(g, 0.12, 0.13, 0.11, -0.085, 0.175, 0.02, limestone);
+      LM.sph(g, 0.042, -0.065, 0.255, 0.065, gold, 14);
+      LM.cyl(g, 0.008, 0.012, 0.032, 8, -0.065, 0.305, 0.065, gold);
+      // Tall Sigismund Bell / Clock Tower with green-copper Baroque cupola
+      LM.box(g, 0.056, 0.24, 0.056, -0.115, 0.24, -0.025, brick);
+      LM.sph(g, 0.034, -0.115, 0.375, -0.025, copper, 12);
+      LM.cone(g, 0.024, 0.11, 8, -0.115, 0.445, -0.025, copper);
+      // Sandomierska corner watchtower
+      LM.box(g, 0.048, 0.19, 0.048, 0.145, 0.21, 0.065, brick);
+      LM.cone(g, 0.038, 0.07, 4, 0.145, 0.34, 0.065, roof).rotation.y = Math.PI / 4;
+      routeGroup.add(g);
+    }
+
+    // 3. Rome (FCO): The Colosseum (Elliptical Tiered Travertine Amphitheater)
+    function createRomeColosseum(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const trav = LM.mat(0xdcc7a1, 0.72, 0.10, { side: THREE.DoubleSide });
+      const travDark = LM.mat(0xbba27a, 0.78, 0.08, { side: THREE.DoubleSide });
+      const glow = LM.glow(1.85, 1.32, 0.55, { side: THREE.DoubleSide });
+      LM.plaza(g, 0.26, 0x475569, 20);
+      const col = new THREE.Group();
+      col.scale.set(1.18, 1.0, 0.92);
+      // Inner arena floor & glowing warm archway colonnade
+      LM.cyl(g, 0.12, 0.12, 0.02, 24, 0, 0.05, 0, LM.mat(0xc9b086, 0.9, 0.04));
+      const innerGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.135, 24, 1, true), glow);
+      innerGlow.position.y = 0.125; col.add(innerGlow);
+      // Lower 3 full elliptical travertine tiers with arched pillars
+      const wallLow = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.192, 0.14, 28, 1, true), trav);
+      wallLow.position.y = 0.125; wallLow.castShadow = true; col.add(wallLow);
+      // Iconic higher surviving outer 4th-story wall arc (60% circumference!)
+      const wallHigh = new THREE.Mesh(new THREE.CylinderGeometry(0.190, 0.190, 0.105, 22, 1, true, 0, Math.PI * 1.18), travDark);
+      wallHigh.position.y = 0.242; wallHigh.castShadow = true; col.add(wallHigh);
+      // Horizontal cornice rings + colonnade pilasters
+      LM.tor(g, 0.19, 0.008, 0, 0.125, 0, travDark, Math.PI / 2, 28).scale.set(1.18, 0.92, 1);
+      LM.tor(g, 0.19, 0.008, 0, 0.192, 0, trav, Math.PI / 2, 28).scale.set(1.18, 0.92, 1);
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        const h = (a < Math.PI * 1.18) ? 0.24 : 0.14;
+        LM.box(col, 0.015, h, 0.018, Math.cos(a) * 0.190, 0.055 + h * 0.5, Math.sin(a) * 0.190, trav);
+      }
+      g.add(col);
+      routeGroup.add(g);
+    }
+
+    // 4. Istanbul (IST): Hagia Sophia / Blue Mosque (Cascading Domes + 4 Illuminated Minarets)
+    function createIstanbulMosque(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xe2cfa9, 0.65, 0.12), dome = LM.mat(0x64748b, 0.42, 0.48);
+      const gold = LM.mat(0xf5c542, 0.26, 0.84), warm = LM.glow(1.9, 1.45, 0.62);
+      LM.plaza(g, 0.26, 0x334155, 18);
+      // Main sanctuary cube + glowing clerestory windows
+      LM.box(g, 0.24, 0.135, 0.24, 0, 0.11, 0, stone);
+      LM.cyl(g, 0.105, 0.11, 0.032, 18, 0, 0.19, 0, warm, false);
+      // Grand central dome + 4 cascading semi-domes + golden crescent finial
+      LM.sph(g, 0.105, 0, 0.20, 0, dome, 18);
+      for (const [dx, dz] of [[0.095, 0], [-0.095, 0], [0, 0.095], [0, -0.095]]) {
+        LM.sph(g, 0.058, dx, 0.165, dz, dome, 12);
+      }
+      LM.cyl(g, 0.004, 0.008, 0.065, 6, 0, 0.33, 0, gold);
+      // 4 slender Ottoman pencil minarets with glowing sherefe balconies
+      for (const [mx, mz] of [[-0.145, -0.145], [0.145, -0.145], [0.145, 0.145], [-0.145, 0.145]]) {
+        LM.cyl(g, 0.011, 0.018, 0.42, 8, mx, 0.25, mz, stone);
+        LM.tor(g, 0.018, 0.005, mx, 0.34, mz, warm, Math.PI / 2, 12);
+        LM.cone(g, 0.013, 0.085, 8, mx, 0.50, mz, dome);
+      }
+      routeGroup.add(g);
+    }
+
+    // 5. Singapore (SIN): Marina Bay Sands (3 Sloped Towers + Cantilevered SkyPark Boat Deck)
+    function createSingaporeMBS(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const bay = LM.mat(0x0c3852, 0.28, 0.40), steel = LM.mat(0xcbd5e1, 0.30, 0.78);
+      const glass = LM.winMat('#16324f', ['#e0f2fe', '#7dd3fc', '#fef3c7', '#38bdf8'], 0x93c5fd, 0.75, 0.22, 0.82);
+      const poolGlow = LM.glow(0.25, 1.95, 2.2), deckRim = LM.glow(2.0, 1.75, 0.95);
+      LM.box(g, 0.48, 0.09, 0.26, 0, -0.015, 0, bay, false);
+      // 3 iconic twin-leg sloped hotel towers
+      for (const tx of [-0.125, 0, 0.125]) {
+        const legA = LM.box(g, 0.068, 0.44, 0.028, tx, 0.25, 0.036, glass);
+        legA.rotation.x = -0.11;
+        const legB = LM.box(g, 0.068, 0.44, 0.028, tx, 0.25, -0.036, glass);
+        legB.rotation.x = 0.11;
+      }
+      // Cantilevered Sands SkyPark boat-shaped roof deck + glowing turquoise infinity pool!
+      const hull = LM.box(g, 0.43, 0.030, 0.105, 0.025, 0.485, 0, steel);
+      hull.castShadow = true;
+      const prow = LM.cone(g, 0.056, 0.11, 4, 0.275, 0.488, 0, steel);
+      prow.rotation.z = -Math.PI / 2; prow.rotation.x = Math.PI / 4;
+      LM.box(g, 0.34, 0.008, 0.048, 0.015, 0.504, 0, poolGlow, false);
+      LM.box(g, 0.42, 0.007, 0.110, 0.025, 0.470, 0, deckRim, false);
+      routeGroup.add(g);
+    }
+
+    // 6. Toronto (YYZ): CN Tower (Tapered Concrete Shaft + Illuminated Main Pod & SkyPod)
+    function createTorontoCNTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const concrete = LM.mat(0xdce2e8, 0.50, 0.22), glass = LM.glow(0.30, 1.85, 2.25);
+      const pink = LM.glow(2.1, 0.38, 1.35);
+      LM.plaza(g, 0.22, 0x334155, 16);
+      // 3 flared Y-buttress concrete support legs + tall tapered shaft
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3;
+        const fin = LM.box(g, 0.024, 0.56, 0.075, Math.cos(a) * 0.035, 0.31, Math.sin(a) * 0.035, concrete);
+        fin.rotation.y = -a + Math.PI / 2;
+      }
+      LM.cyl(g, 0.022, 0.044, 0.72, 12, 0, 0.39, 0, concrete);
+      // Iconic glowing CN Tower Main Pod + upper SkyPod
+      LM.cyl(g, 0.088, 0.068, 0.048, 20, 0, 0.62, 0, concrete);
+      LM.tor(g, 0.090, 0.009, 0, 0.62, 0, glass);
+      LM.tor(g, 0.076, 0.007, 0, 0.648, 0, pink);
+      LM.cyl(g, 0.034, 0.038, 0.038, 14, 0, 0.76, 0, glass);
+      LM.cyl(g, 0.003, 0.015, 0.26, 8, 0, 0.91, 0, concrete);
+      LM.beacon(g, 0, 1.05, 0, 0.015);
+      routeGroup.add(g);
+    }
+
+    // 7. Chicago (ORD): Willis (Sears) Tower (9-Tube Bundled Black Steel) + Cloud Gate ("The Bean")
+    function createChicagoWillis(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const steel = LM.winMat('#111827', ['#fef3c7', '#e0f2fe', '#94a3b8'], 0xfff0c8, 0.65, 0.30, 0.72);
+      const white = LM.mat(0xf8fafc, 0.35, 0.55), chrome = LM.mat(0xe2e8f0, 0.06, 0.98);
+      const crown = LM.glow(2.0, 2.0, 2.1);
+      LM.plaza(g, 0.25, 0x1e293b, 16);
+      // Authentic 3x3 bundled tube height layout (tiers: 50, 66, 90, 108 floors)
+      const heights = [
+        [0.36, 0.48, 0.36],
+        [0.64, 0.78, 0.78],
+        [0.48, 0.64, 0.48]
+      ];
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const h = heights[r][c];
+          LM.box(g, 0.044, h, 0.044, -0.05 + (c - 1) * 0.045, 0.04 + h * 0.5, (r - 1) * 0.045, steel);
+        }
+      }
+      // Twin signature white broadcast antennas + glowing rooftop LED bands
+      for (const ax of [-0.05, -0.005]) {
+        LM.cyl(g, 0.003, 0.009, 0.24, 6, ax, 0.94, 0, white);
+        LM.beacon(g, ax, 1.065, 0, 0.012);
+      }
+      LM.box(g, 0.095, 0.012, 0.048, -0.028, 0.822, 0, crown, false);
+      // Cloud Gate ("The Bean") polished chrome sculpture in Millennium Park forecourt
+      const bean = LM.sph(g, 0.048, 0.125, 0.072, 0.075, chrome, 16);
+      bean.scale.set(1.45, 0.78, 0.88);
+      routeGroup.add(g);
+    }
+
+    // 8. Seoul (ICN): N Seoul Tower atop Namsan Mountain
+    function createSeoulTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const hill = LM.mat(0x365c3b, 0.90, 0.04), white = LM.mat(0xe2e8f0, 0.38, 0.42);
+      const cyan = LM.glow(0.28, 1.9, 2.25), magenta = LM.glow(2.15, 0.32, 1.25);
+      LM.cyl(g, 0.16, 0.27, 0.18, 14, 0, 0.03, 0, hill);
+      LM.cyl(g, 0.08, 0.13, 0.05, 12, 0, 0.14, 0, white);
+      LM.cyl(g, 0.020, 0.025, 0.42, 12, 0, 0.36, 0, white);
+      // Iconic glowing multi-tier cylindrical observation deck + tall lattice mast
+      LM.cyl(g, 0.066, 0.052, 0.048, 16, 0, 0.56, 0, white);
+      LM.cyl(g, 0.068, 0.068, 0.034, 16, 0, 0.60, 0, cyan, false);
+      LM.cyl(g, 0.054, 0.066, 0.032, 16, 0, 0.635, 0, white);
+      LM.tor(g, 0.072, 0.006, 0, 0.58, 0, magenta);
+      LM.cyl(g, 0.003, 0.014, 0.30, 6, 0, 0.80, 0, white);
+      LM.beacon(g, 0, 0.96, 0, 0.014);
+      routeGroup.add(g);
+    }
+
+    // 9. Cape Town (CPT): Table Mountain Massif with Translucent "Tablecloth" Cloud
+    function createCapeTownTableMountain(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const rock = LM.mat(0x7c6f60, 0.88, 0.06, { flatShading: true });
+      const fynbos = LM.mat(0x3f6142, 0.90, 0.04, { flatShading: true });
+      const cloud = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, transparent: true, opacity: 0.82 });
+      LM.plaza(g, 0.27, 0x0f3b57, 16);
+      // Iconic long flat-topped sandstone plateau massif
+      const massif = LM.cyl(g, 0.13, 0.22, 0.22, 8, 0, 0.13, 0, rock);
+      massif.scale.set(1.55, 1.0, 0.65);
+      // Flanking Devil's Peak & Lion's Head
+      LM.cone(g, 0.085, 0.19, 6, -0.20, 0.125, 0.03, fynbos);
+      LM.cone(g, 0.072, 0.16, 6, 0.21, 0.11, 0.04, fynbos);
+      // Signature white "Tablecloth" cloud cascading over the flat plateau!
+      const cloth = LM.box(g, 0.33, 0.036, 0.135, 0, 0.252, 0.01, cloud, false);
+      cloth.rotation.x = 0.08;
+      routeGroup.add(g);
+    }
+
+    // 10. Reykjavik (KEF): Hallgrímskirkja (Stepped Basalt-Column Concrete Cathedral)
+    function createReykjavikHallgrimskirkja(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const concrete = LM.mat(0xdce3ea, 0.62, 0.10), roof = LM.mat(0x475569, 0.55, 0.22);
+      const warm = LM.glow(2.0, 1.72, 0.95);
+      LM.plaza(g, 0.24, 0x334155, 16);
+      // Symmetrical stepped basalt-column organ-pipe façade rising toward center spire
+      for (let k = -6; k <= 6; k++) {
+        const ak = Math.abs(k);
+        const h = 0.44 - ak * 0.054;
+        LM.box(g, 0.022, h, 0.055 + (6 - ak) * 0.008, k * 0.024, 0.04 + h * 0.5, 0.02, concrete);
+      }
+      // Central nave behind façade + tall tower spire + glowing cross
+      LM.box(g, 0.12, 0.16, 0.18, 0, 0.12, -0.07, concrete);
+      LM.cone(g, 0.042, 0.18, 4, 0, 0.57, 0.02, roof).rotation.y = Math.PI / 4;
+      LM.box(g, 0.016, 0.095, 0.016, 0, 0.68, 0.02, warm, false);
+      LM.box(g, 0.052, 0.014, 0.016, 0, 0.695, 0.02, warm, false);
+      routeGroup.add(g);
+    }
+
+    // 11. Amsterdam (AMS): Animated Dutch Windmill + Stepped-Gable Canal House
+    function createAmsterdamWindmill(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const grass = LM.mat(0x3f7a44, 0.88, 0.04), canal = LM.mat(0x0e4d6c, 0.28, 0.35);
+      const thatch = LM.mat(0x7c5c3e, 0.86, 0.05), brick = LM.mat(0x9a3412, 0.76, 0.08);
+      const sailMat = LM.mat(0xf8fafc, 0.55, 0.10), wood = LM.mat(0x451a03, 0.80, 0.08);
+      const win = LM.winMat('#7c2d12', ['#fef3c7', '#fbbf24'], 0xffd27a, 0.72, 0.65, 0.1);
+      LM.plaza(g, 0.25, 0x3f7a44, 18);
+      LM.box(g, 0.44, 0.025, 0.095, 0, 0.045, 0.11, canal, false);
+      // Octagonal smock windmill tower + cap
+      const wx = -0.055, wz = -0.02;
+      LM.cyl(g, 0.048, 0.085, 0.30, 8, wx, 0.19, wz, thatch);
+      LM.sph(g, 0.052, wx, 0.345, wz, wood, 10);
+      // Animated 4-blade Dutch windmill sails!
+      const hub = new THREE.Group();
+      hub.position.set(wx, 0.335, wz + 0.058);
+      for (let i = 0; i < 4; i++) {
+        const arm = new THREE.Group();
+        arm.rotation.z = (i * Math.PI) / 2;
+        LM.box(arm, 0.010, 0.21, 0.008, 0, 0.105, 0, wood);
+        LM.box(arm, 0.032, 0.16, 0.005, 0.018, 0.115, 0.003, sailMat);
+        hub.add(arm);
+      }
+      spinNodes.push({ obj: hub, axis: 'z', speed: 0.95 });
+      g.add(hub);
+      // Classic narrow Dutch stepped-gable canal house beside the windmill
+      LM.box(g, 0.10, 0.20, 0.11, 0.105, 0.14, -0.02, win);
+      LM.box(g, 0.075, 0.032, 0.11, 0.105, 0.256, -0.02, brick);
+      LM.box(g, 0.046, 0.028, 0.11, 0.105, 0.285, -0.02, brick);
+      routeGroup.add(g);
+    }
+
+    // 12. Frankfurt (FRA): Commerzbank Triangular Sky-Garden Tower + Messeturm
+    function createFrankfurtMainhattan(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const glass = LM.winMat('#23415c', ['#e0f2fe', '#fef3c7', '#7dd3fc'], 0xcbeafe, 0.72, 0.24, 0.80);
+      const garden = LM.glow(0.45, 1.85, 0.65), yellow = LM.glow(2.1, 1.85, 0.35);
+      const granite = LM.mat(0xa67c68, 0.58, 0.22);
+      LM.plaza(g, 0.24, 0x1e293b, 16);
+      // Commerzbank Tower (triangular prism + glowing spiral sky-garden notches + yellow spire)
+      LM.cyl(g, 0.076, 0.082, 0.56, 3, -0.05, 0.32, 0, glass);
+      for (const gy of [0.22, 0.36, 0.50]) {
+        LM.cyl(g, 0.078, 0.078, 0.024, 3, -0.05, gy, 0, garden, false);
+      }
+      LM.cyl(g, 0.004, 0.011, 0.26, 6, -0.05, 0.72, 0, yellow, false);
+      LM.beacon(g, -0.05, 0.86, 0, 0.013);
+      // Companion Messeturm (pencil-shaped granite skyscraper with pyramidal crown)
+      LM.box(g, 0.092, 0.48, 0.092, 0.105, 0.28, 0.03, granite);
+      LM.cone(g, 0.068, 0.15, 4, 0.105, 0.595, 0.03, granite).rotation.y = Math.PI / 4;
+      routeGroup.add(g);
+    }
+
+    // 13. Madrid (MAD): Puerta de Europa (KIO Opposing 15° Leaning Twin Towers)
+    function createMadridKioTowers(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const glass = LM.winMat('#1e293b', ['#e0f2fe', '#fef3c7', '#93c5fd'], 0xbae6fd, 0.72, 0.22, 0.80);
+      const steel = LM.mat(0xdc2626, 0.40, 0.55), gold = LM.glow(2.1, 1.72, 0.45);
+      LM.plaza(g, 0.25, 0x334155, 16);
+      // Opposing 15° inclined twin skyscrapers!
+      const tL = LM.box(g, 0.10, 0.44, 0.10, -0.105, 0.25, 0, glass);
+      tL.rotation.z = -0.26;
+      const tR = LM.box(g, 0.10, 0.44, 0.10, 0.105, 0.25, 0, glass);
+      tR.rotation.z = 0.26;
+      // Red/steel rooftop diagonal cross-beams
+      const cL = LM.box(g, 0.108, 0.016, 0.108, -0.05, 0.465, 0, steel); cL.rotation.z = -0.26;
+      const cR = LM.box(g, 0.108, 0.016, 0.108, 0.05, 0.465, 0, steel); cR.rotation.z = 0.26;
+      // Central Caja Obelisk glowing gold between the leaning towers
+      LM.cyl(g, 0.008, 0.014, 0.28, 8, 0, 0.18, 0.08, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 14. São Paulo (GRU): Ponte Estaiada (Iconic X-Shaped Cable-Stayed Bridge)
+    function createSaoPauloPonte(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.072, 0.052);
+      const river = LM.mat(0x13384c, 0.35, 0.30), concrete = LM.mat(0xe2e8f0, 0.55, 0.18);
+      const deck = LM.mat(0x334155, 0.72, 0.22), cableGlow = LM.glow(2.0, 1.78, 0.55);
+      const cyan = LM.glow(0.28, 1.85, 2.25);
+      LM.box(g, 0.50, 0.08, 0.22, 0, -0.015, 0, river, false);
+      // Curved twin bridge roadways
+      LM.box(g, 0.48, 0.016, 0.044, 0, 0.12, 0.032, deck);
+      LM.box(g, 0.48, 0.016, 0.044, 0, 0.16, -0.032, deck);
+      // Signature Giant X-Shaped Concrete Pylon straddling the decks!
+      const leg1 = LM.box(g, 0.028, 0.56, 0.028, 0, 0.30, 0, concrete); leg1.rotation.x = 0.34;
+      const leg2 = LM.box(g, 0.028, 0.56, 0.028, 0, 0.30, 0, concrete); leg2.rotation.x = -0.34;
+      LM.box(g, 0.030, 0.022, 0.22, 0, 0.55, 0, cyan, false);
+      // Fan of glowing golden stay cables radiating from the upper X-arms to the decks
+      for (const sx of [-0.21, -0.15, -0.09, 0.09, 0.15, 0.21]) {
+        const topY = 0.52 - Math.abs(sx) * 0.45;
+        for (const sz of [-0.032, 0.032]) {
+          const p0 = new THREE.Vector3(0, topY, sz * 2.1);
+          const p1 = new THREE.Vector3(sx, sz > 0 ? 0.125 : 0.165, sz);
+          const d = new THREE.Vector3().subVectors(p1, p0);
+          const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, d.length(), 4), cableGlow);
+          cab.position.copy(p0).addScaledVector(d, 0.5);
+          cab.quaternion.setFromUnitVectors(UP, d.normalize());
+          g.add(cab);
+        }
+      }
+      routeGroup.add(g);
+    }
+
+    // 15. Anchorage (ANC): Denali (Highest Twin-Summit Snow-Capped Peak in North America)
+    function createAnchorageDenali(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const rock = LM.mat(0x475569, 0.85, 0.08, { flatShading: true });
+      const snow = LM.mat(0xf1f5f9, 0.50, 0.08, { flatShading: true });
+      const ice = LM.mat(0xbae6fd, 0.35, 0.18, { flatShading: true });
+      LM.plaza(g, 0.27, 0x334155, 14);
+      // South Peak (main summit) + North Peak + glacial ridge
+      LM.cone(g, 0.185, 0.30, 6, -0.04, 0.16, -0.02, rock);
+      LM.cone(g, 0.105, 0.18, 6, -0.04, 0.26, -0.02, snow);
+      LM.cone(g, 0.135, 0.25, 5, 0.11, 0.14, 0.04, rock);
+      LM.cone(g, 0.075, 0.14, 5, 0.11, 0.22, 0.04, snow);
+      LM.cone(g, 0.10, 0.15, 5, -0.15, 0.095, 0.09, ice);
+      routeGroup.add(g);
+    }
+
+    // --- 35 World-Wonder & Global OpenFlights Hub Landmarks ---
+
+    // 16. Rio de Janeiro (GIG / SDU): Christ the Redeemer atop Corcovado Peak
+    function createRioChristRedeemer(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const peak = LM.mat(0x2f5d3a, 0.88, 0.05, { flatShading: true }), stone = LM.mat(0xf1f5f9, 0.45, 0.12);
+      const glow = LM.glow(1.85, 1.88, 2.0);
+      LM.cone(g, 0.24, 0.28, 7, 0, 0.12, 0, peak);
+      LM.box(g, 0.085, 0.075, 0.085, 0, 0.265, 0, LM.mat(0x94a3b8, 0.7, 0.1));
+      // Statue body + outstretched arms + head + subtle floodlight halo
+      LM.cyl(g, 0.022, 0.032, 0.22, 8, 0, 0.405, 0, stone);
+      LM.box(g, 0.23, 0.026, 0.024, 0, 0.475, 0, stone);
+      LM.sph(g, 0.024, 0, 0.535, 0, stone, 10);
+      LM.tor(g, 0.055, 0.005, 0, 0.31, 0, glow);
+      routeGroup.add(g);
+    }
+
+    // 17. Athens (ATH): The Parthenon on the Acropolis Hill
+    function createAthensParthenon(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const rock = LM.mat(0x9c8b75, 0.90, 0.05, { flatShading: true });
+      const marble = LM.mat(0xf1e7d2, 0.58, 0.08), warm = LM.glow(1.9, 1.52, 0.72);
+      LM.cyl(g, 0.21, 0.27, 0.14, 10, 0, 0.02, 0, rock);
+      // 3-step marble stylobate
+      LM.box(g, 0.28, 0.024, 0.16, 0, 0.10, 0, marble);
+      LM.box(g, 0.25, 0.018, 0.14, 0, 0.12, 0, marble);
+      // Doric colonnade perimeter + warm floodlit cella
+      LM.box(g, 0.16, 0.09, 0.075, 0, 0.175, 0, warm, false);
+      for (let i = 0; i < 8; i++) {
+        const x = -0.112 + i * 0.032;
+        LM.cyl(g, 0.007, 0.009, 0.115, 8, x, 0.185, 0.058, marble);
+        LM.cyl(g, 0.007, 0.009, 0.115, 8, x, 0.185, -0.058, marble);
+      }
+      for (const z of [-0.02, 0.02]) {
+        LM.cyl(g, 0.007, 0.009, 0.115, 8, -0.112, 0.185, z, marble);
+        LM.cyl(g, 0.007, 0.009, 0.115, 8, 0.112, 0.185, z, marble);
+      }
+      // Architrave + triangular pediments
+      LM.box(g, 0.25, 0.022, 0.14, 0, 0.252, 0, marble);
+      const roof = LM.cyl(g, 0.01, 0.085, 0.25, 3, 0, 0.292, 0, marble);
+      roof.rotation.z = Math.PI / 2; roof.rotation.x = Math.PI / 6;
+      routeGroup.add(g);
+    }
+
+    // 18. Berlin (BER / TXL / SXF): Fernsehturm (TV Tower) + Brandenburg Gate
+    function createBerlinFernsehturm(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const concrete = LM.mat(0xdce2e8, 0.50, 0.22), silver = LM.mat(0xcbd5e1, 0.16, 0.90);
+      const red = LM.mat(0xdc2626, 0.45, 0.35), sand = LM.mat(0xd6c39c, 0.65, 0.10);
+      const gold = LM.mat(0xf5c542, 0.28, 0.82), cyan = LM.glow(0.35, 1.85, 2.2);
+      LM.plaza(g, 0.25, 0x334155, 16);
+      // Fernsehturm shaft + iconic mirrored disco sphere + red/white striped antenna
+      const tx = -0.06;
+      LM.cyl(g, 0.018, 0.036, 0.52, 12, tx, 0.29, 0, concrete);
+      LM.sph(g, 0.066, tx, 0.56, 0, silver, 18);
+      LM.tor(g, 0.067, 0.006, tx, 0.56, 0, cyan);
+      LM.cyl(g, 0.008, 0.014, 0.14, 8, tx, 0.69, 0, red);
+      LM.cyl(g, 0.003, 0.008, 0.18, 8, tx, 0.85, 0, concrete);
+      LM.beacon(g, tx, 0.95, 0, 0.013);
+      // Companion Brandenburg Gate with Golden Quadriga on the right!
+      const bx = 0.105;
+      for (let i = 0; i < 6; i++) {
+        LM.cyl(g, 0.006, 0.007, 0.11, 8, bx - 0.065 + i * 0.026, 0.095, 0.02, sand);
+      }
+      LM.box(g, 0.16, 0.034, 0.055, bx, 0.165, 0.02, sand);
+      LM.box(g, 0.052, 0.026, 0.036, bx, 0.195, 0.02, gold);
+      routeGroup.add(g);
+    }
+
+    // 19. Barcelona (BCN): Gaudí's Sagrada Família
+    function createBarcelonaSagrada(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xdcb887, 0.68, 0.10), dark = LM.mat(0xb89262, 0.72, 0.08);
+      const star = LM.glow(2.2, 1.95, 1.05), stained = LM.glow(1.9, 0.85, 0.35);
+      LM.plaza(g, 0.25, 0x475569, 16);
+      LM.box(g, 0.24, 0.16, 0.18, 0, 0.12, 0, stone);
+      LM.box(g, 0.244, 0.04, 0.08, 0, 0.12, 0, stained, false);
+      // 8 sculpted parabolic bell towers (Nativity & Passion facades)
+      for (const z of [-0.075, 0.075]) {
+        for (let i = 0; i < 4; i++) {
+          const x = -0.075 + i * 0.05;
+          const h = (i === 1 || i === 2) ? 0.34 : 0.28;
+          LM.cyl(g, 0.007, 0.020, h, 8, x, 0.16 + h * 0.5, z, i % 2 === 0 ? stone : dark);
+          LM.sph(g, 0.011, x, 0.165 + h, z, star, 8);
+        }
+      }
+      // Central soaring Tower of Jesus Christ + glowing Star of Mary finial
+      LM.cyl(g, 0.016, 0.044, 0.44, 10, 0, 0.38, 0, stone);
+      LM.sph(g, 0.024, 0, 0.62, 0, star, 10);
+      routeGroup.add(g);
+    }
+
+    // 20. Pisa (PSA): Leaning Tower of Pisa on Piazza dei Miracoli
+    function createPisaLeaningTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf1ece1, 0.52, 0.10), colMat = LM.mat(0xd6cbb8, 0.62, 0.08);
+      const warm = LM.glow(1.85, 1.55, 0.92);
+      LM.plaza(g, 0.25, 0x3f7a44, 18); // Green Field of Miracles lawn!
+      const lean = new THREE.Group();
+      lean.position.set(0, 0.04, 0);
+      lean.rotation.z = -0.20; // Unmistakable ~11.5° tilt for crisp orbital readability!
+      LM.cyl(lean, 0.068, 0.072, 0.08, 18, 0, 0.04, 0, marble);
+      for (let tier = 0; tier < 6; tier++) {
+        const y = 0.11 + tier * 0.062;
+        LM.cyl(lean, 0.058, 0.058, 0.052, 18, 0, y, 0, colMat);
+        LM.tor(lean, 0.064, 0.006, 0, y + 0.028, 0, marble, Math.PI / 2, 18);
+      }
+      // Smaller belfry chamber on top
+      LM.cyl(lean, 0.044, 0.046, 0.075, 16, 0, 0.51, 0, marble);
+      LM.tor(lean, 0.047, 0.005, 0, 0.52, 0, warm, Math.PI / 2, 16);
+      g.add(lean);
+      routeGroup.add(g);
+    }
+
+    // 21. Venice (VCE): St. Mark's Campanile & Basilica Golden Domes
+    function createVeniceSanMarco(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const lagoon = LM.mat(0x0d5c75, 0.26, 0.38), brick = LM.mat(0xb8523b, 0.72, 0.10);
+      const marble = LM.mat(0xf1e9da, 0.54, 0.12), gold = LM.mat(0xf5c542, 0.25, 0.82);
+      const warm = LM.glow(1.9, 1.5, 0.68);
+      LM.plaza(g, 0.26, 0x0d5c75, 18);
+      LM.box(g, 0.34, 0.04, 0.24, 0, 0.045, 0, marble);
+      // St. Mark's Campanile brick bell tower + marble belfry + steep spire
+      LM.box(g, 0.072, 0.38, 0.072, -0.075, 0.25, 0.02, brick);
+      LM.box(g, 0.076, 0.072, 0.076, -0.075, 0.47, 0.02, warm, false);
+      LM.cone(g, 0.056, 0.17, 4, -0.075, 0.59, 0.02, brick).rotation.y = Math.PI / 4;
+      LM.sph(g, 0.012, -0.075, 0.685, 0.02, gold, 8);
+      // St. Mark's Basilica with 5 Byzantine domes
+      LM.box(g, 0.16, 0.11, 0.14, 0.075, 0.115, -0.01, marble);
+      for (const [dx, dz, r] of [[0.075, -0.01, 0.042], [0.025, -0.01, 0.028], [0.125, -0.01, 0.028], [0.075, -0.055, 0.028], [0.075, 0.035, 0.028]]) {
+        LM.sph(g, r, dx, 0.175, dz, gold, 12);
+      }
+      routeGroup.add(g);
+    }
+
+    // 22. Brussels (BRU): The Atomium (9 Gleaming Chrome Spheres Body-Centered Cubic Crystal)
+    function createBrusselsAtomium(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const chrome = LM.mat(0xe2e8f0, 0.10, 0.95), tube = LM.mat(0xcbd5e1, 0.22, 0.85);
+      const glow = LM.glow(0.45, 1.9, 2.25);
+      LM.plaza(g, 0.24, 0x334155, 16);
+      // Build authentic 9-sphere BCC unit cell tilted so main diagonal stands strictly vertical!
+      const cell = new THREE.Group();
+      const qTilt = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 1, 1).normalize(), UP);
+      cell.quaternion.copy(qTilt);
+      cell.position.y = 0.34;
+      const a = 0.145;
+      const corners = [];
+      for (const sx of [-a, a]) for (const sy of [-a, a]) for (const sz of [-a, a]) corners.push(new THREE.Vector3(sx, sy, sz));
+      const allPts = [new THREE.Vector3(0, 0, 0), ...corners];
+      for (const p of allPts) {
+        LM.sph(cell, 0.044, p.x, p.y, p.z, chrome, 14);
+        LM.tor(cell, 0.045, 0.004, p.x, p.y, p.z, glow, Math.PI / 2, 14);
+      }
+      const addStrut = (p1, p2) => {
+        const d = new THREE.Vector3().subVectors(p2, p1);
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, d.length(), 8), tube);
+        m.position.copy(p1).addScaledVector(d, 0.5);
+        m.quaternion.setFromUnitVectors(UP, d.normalize());
+        m.castShadow = true; cell.add(m);
+      };
+      // 8 diagonals to center + 12 cube edges
+      for (const c of corners) addStrut(allPts[0], c);
+      for (let i = 0; i < corners.length; i++) {
+        for (let j = i + 1; j < corners.length; j++) {
+          if (Math.abs(corners[i].distanceTo(corners[j]) - 2 * a) < 0.01) addStrut(corners[i], corners[j]);
+        }
+      }
+      g.add(cell);
+      // Vertical support legs
+      LM.cyl(g, 0.014, 0.022, 0.14, 8, 0, 0.09, 0, tube);
+      routeGroup.add(g);
+    }
+
+    // 23. Prague (PRG): St. Vitus Cathedral Twin Gothic Spires + Astronomical Clock Tower
+    function createPragueCastle(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xd9ccb4, 0.68, 0.10), roof = LM.mat(0xb44c33, 0.70, 0.10);
+      const slate = LM.mat(0x1e293b, 0.46, 0.35), copper = LM.mat(0x2d7a6e, 0.40, 0.55);
+      const clockTex = createClockDialTex('#1e3a8a', '#f59e0b', '#fef08a');
+      const clockMat = new THREE.MeshBasicMaterial({ map: clockTex, color: new THREE.Color(1.5, 1.4, 1.1), toneMapped: false });
+      LM.plaza(g, 0.25, 0x334155, 16);
+      // Bohemian red-roofed palace + St. Vitus Gothic nave & twin spires
+      LM.box(g, 0.26, 0.11, 0.13, -0.02, 0.095, 0, stone);
+      LM.box(g, 0.26, 0.025, 0.135, -0.02, 0.16, 0, roof);
+      for (const sz of [-0.042, 0.042]) {
+        LM.box(g, 0.044, 0.28, 0.044, -0.075, 0.24, sz, stone);
+        LM.cone(g, 0.032, 0.18, 4, -0.075, 0.47, sz, slate).rotation.y = Math.PI / 4;
+      }
+      LM.box(g, 0.052, 0.32, 0.052, 0.02, 0.26, 0, stone);
+      LM.cone(g, 0.038, 0.14, 8, 0.02, 0.49, 0, copper);
+      // Old Town Astronomical Clock Tower (Orloj) on right!
+      LM.box(g, 0.072, 0.26, 0.072, 0.125, 0.17, 0.04, stone);
+      LM.cone(g, 0.054, 0.11, 4, 0.125, 0.355, 0.04, slate).rotation.y = Math.PI / 4;
+      const dial = new THREE.Mesh(new THREE.CircleGeometry(0.026, 16), clockMat);
+      dial.position.set(0.125, 0.22, 0.078); g.add(dial);
+      routeGroup.add(g);
+    }
+
+    // 24. Vienna (VIE): Stephansdom Cathedral + Animated Wiener Riesenrad Ferris Wheel
+    function createViennaStephansdom(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xd8cfc0, 0.65, 0.12), roof = LM.mat(0x1e6b52, 0.52, 0.22);
+      const red = LM.mat(0xdc2626, 0.45, 0.42), steel = LM.mat(0xcbd5e1, 0.32, 0.78);
+      const warm = LM.glow(2.0, 1.62, 0.72);
+      LM.plaza(g, 0.26, 0x334155, 16);
+      // Stephansdom nave + iconic steep tiled roof + soaring South Tower spire
+      LM.box(g, 0.16, 0.12, 0.10, -0.065, 0.10, -0.02, stone);
+      const sRoof = LM.cyl(g, 0.008, 0.078, 0.165, 3, -0.065, 0.20, -0.02, roof);
+      sRoof.rotation.z = Math.PI / 2; sRoof.rotation.x = Math.PI / 6;
+      LM.cyl(g, 0.012, 0.036, 0.42, 8, -0.03, 0.31, 0.045, stone);
+      LM.cone(g, 0.020, 0.18, 6, -0.03, 0.60, 0.045, stone);
+      // Animated Wiener Riesenrad Giant Ferris Wheel on right!
+      const fx = 0.115, fy = 0.21, fz = 0.01;
+      for (const side of [-0.03, 0.03]) {
+        const leg = LM.cyl(g, 0.006, 0.009, 0.19, 6, fx + side, 0.12, fz, steel);
+        leg.rotation.z = side > 0 ? 0.24 : -0.24;
+      }
+      const wheel = new THREE.Group();
+      wheel.position.set(fx, fy, fz);
+      LM.tor(wheel, 0.115, 0.007, 0, 0, 0, steel, 0, 24);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const sp = LM.box(wheel, 0.004, 0.23, 0.004, 0, 0, 0, steel);
+        sp.rotation.z = a;
+        LM.box(wheel, 0.022, 0.018, 0.016, Math.cos(a) * 0.115, Math.sin(a) * 0.115, 0, i % 2 === 0 ? red : warm);
+      }
+      spinNodes.push({ obj: wheel, axis: 'z', speed: 0.42 });
+      g.add(wheel);
+      routeGroup.add(g);
+    }
+
+    // 25. Budapest (BUD): Hungarian Parliament Building on the Danube
+    function createBudapestParliament(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.072, 0.052);
+      const river = LM.mat(0x0f3b57, 0.30, 0.35), stone = LM.mat(0xe8dec9, 0.58, 0.12);
+      const roof = LM.mat(0x991b1b, 0.60, 0.18), gold = LM.glow(2.0, 1.52, 0.62);
+      LM.box(g, 0.48, 0.09, 0.24, 0, -0.015, 0, river, false);
+      LM.box(g, 0.42, 0.04, 0.16, 0, 0.045, -0.02, LM.mat(0x475569, 0.8, 0.15));
+      // Symmetrical Neo-Gothic riverside wings + crimson roofs + glowing colonnade strip
+      LM.box(g, 0.38, 0.11, 0.11, 0, 0.12, -0.02, stone);
+      LM.box(g, 0.39, 0.016, 0.114, 0, 0.115, -0.02, gold, false);
+      LM.box(g, 0.37, 0.026, 0.105, 0, 0.188, -0.02, roof);
+      // Iconic central Neo-Gothic ribbed crimson dome + slender flanking spires
+      LM.cyl(g, 0.052, 0.064, 0.11, 14, 0, 0.24, -0.02, stone);
+      LM.cone(g, 0.056, 0.16, 14, 0, 0.37, -0.02, roof);
+      LM.cyl(g, 0.004, 0.008, 0.07, 6, 0, 0.48, -0.02, gold, false);
+      for (const sx of [-0.15, -0.085, 0.085, 0.15]) {
+        LM.cone(g, 0.014, 0.13, 6, sx, 0.26, -0.02, stone);
+      }
+      routeGroup.add(g);
+    }
+
+    // 26. Moscow (SVO / DME / VKO): Saint Basil's Cathedral (Colorful Onion Domes)
+    function createMoscowStBasils(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const brick = LM.mat(0xb84232, 0.72, 0.10), white = LM.mat(0xf1f5f9, 0.55, 0.10);
+      const gold = LM.mat(0xfbbf24, 0.22, 0.86);
+      const domeCols = [0x2563eb, 0x16a34a, 0xdc2626, 0xeab308, 0x0ea5e9, 0x9333ea];
+      LM.plaza(g, 0.25, 0x475569, 16);
+      LM.box(g, 0.26, 0.10, 0.26, 0, 0.09, 0, brick);
+      // Central tall white tent spire + golden onion dome
+      LM.cyl(g, 0.044, 0.056, 0.16, 8, 0, 0.21, 0, brick);
+      LM.cone(g, 0.048, 0.22, 8, 0, 0.39, 0, white);
+      LM.sph(g, 0.026, 0, 0.515, 0, gold, 12);
+      LM.cone(g, 0.015, 0.045, 8, 0, 0.548, 0, gold);
+      // Ring of 6 colorful Russian onion-dome chapels
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const r = 0.096, h = (i % 2 === 0) ? 0.17 : 0.13;
+        const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+        const dm = LM.mat(domeCols[i], 0.34, 0.32);
+        LM.cyl(g, 0.028, 0.032, h, 8, cx, 0.14 + h * 0.5, cz, i % 2 === 0 ? brick : white);
+        LM.sph(g, 0.034, cx, 0.16 + h, cz, dm, 12);
+        LM.cone(g, 0.022, 0.052, 8, cx, 0.20 + h, cz, dm);
+      }
+      routeGroup.add(g);
+    }
+
+    // 27. Kyiv (KBP): Motherland Monument (Titanium Statue with Sword & Golden Shield)
+    function createKyivMotherland(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const hill = LM.mat(0x3f6e42, 0.88, 0.05), concrete = LM.mat(0x94a3b8, 0.72, 0.15);
+      const steel = LM.mat(0xe2e8f0, 0.18, 0.92), gold = LM.glow(2.1, 1.75, 0.35);
+      const blue = LM.glow(0.22, 1.15, 2.25);
+      LM.cyl(g, 0.20, 0.27, 0.14, 14, 0, 0.01, 0, hill);
+      LM.cyl(g, 0.075, 0.125, 0.16, 12, 0, 0.15, 0, concrete);
+      LM.tor(g, 0.088, 0.008, 0, 0.23, 0, blue);
+      // Gleaming stainless-steel statue figure + raised sword & shield
+      LM.cyl(g, 0.026, 0.044, 0.30, 10, 0, 0.38, 0, steel);
+      LM.sph(g, 0.024, 0, 0.555, 0, steel, 10);
+      // Raised right arm + towering titanium sword
+      const armR = LM.cyl(g, 0.009, 0.011, 0.14, 6, 0.045, 0.54, 0, steel); armR.rotation.z = -0.35;
+      LM.box(g, 0.010, 0.22, 0.006, 0.068, 0.70, 0, steel);
+      // Raised left arm + golden-accented shield
+      const armL = LM.cyl(g, 0.009, 0.011, 0.13, 6, -0.048, 0.54, 0, steel); armL.rotation.z = 0.38;
+      LM.box(g, 0.056, 0.082, 0.014, -0.078, 0.62, 0, steel);
+      LM.box(g, 0.024, 0.042, 0.018, -0.078, 0.62, 0, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 28. Lisbon (LIS): Belém Tower on the Tagus Estuary
+    function createLisbonBelem(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0e4a66, 0.28, 0.38), limestone = LM.mat(0xe8dcc2, 0.62, 0.10);
+      const warm = LM.glow(1.9, 1.48, 0.68);
+      LM.plaza(g, 0.26, 0x0e4a66, 18);
+      // Hexagonal riverside bastion + projecting Manueline watchtower
+      LM.box(g, 0.18, 0.085, 0.26, 0, 0.08, 0.02, limestone);
+      LM.box(g, 0.13, 0.28, 0.13, 0, 0.24, -0.04, limestone);
+      LM.box(g, 0.138, 0.018, 0.138, 0, 0.39, -0.04, warm, false);
+      // Corner bartizan turrets with ribbed domes
+      for (const [tx, tz] of [[-0.072, -0.112], [0.072, -0.112], [-0.072, 0.032], [0.072, 0.032], [-0.09, 0.14], [0.09, 0.14]]) {
+        const yBase = tz > 0.08 ? 0.135 : 0.385;
+        LM.cyl(g, 0.016, 0.014, 0.045, 8, tx, yBase, tz, limestone);
+        LM.sph(g, 0.018, tx, yBase + 0.028, tz, limestone, 10);
+      }
+      routeGroup.add(g);
+    }
+
+    // 29. Delhi / Agra (DEL / AGR): The Taj Mahal (Ivory Marble Dome + 4 Minarets + Reflecting Pool)
+    function createTajMahal(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf8f5ee, 0.38, 0.12), pool = LM.glow(0.28, 1.55, 1.85);
+      const gold = LM.mat(0xfbbf24, 0.22, 0.86), arch = LM.mat(0xcbc2b0, 0.65, 0.08);
+      LM.plaza(g, 0.27, 0x3b6e46, 18); // Mughal Charbagh garden base
+      LM.box(g, 0.055, 0.012, 0.20, 0, 0.044, 0.16, pool, false); // Reflecting pool!
+      // Raised white marble plinth + central mausoleum with arched iwan
+      LM.box(g, 0.30, 0.055, 0.30, 0, 0.065, -0.03, marble);
+      LM.box(g, 0.17, 0.13, 0.17, 0, 0.155, -0.03, marble);
+      LM.box(g, 0.065, 0.095, 0.174, 0, 0.145, -0.03, arch);
+      // Iconic bulbous ivory marble onion dome + lotus pinnacle + 4 chhatri kiosks
+      LM.cyl(g, 0.056, 0.060, 0.05, 16, 0, 0.24, -0.03, marble);
+      LM.sph(g, 0.064, 0, 0.29, -0.03, marble, 18);
+      LM.cone(g, 0.034, 0.075, 12, 0, 0.355, -0.03, marble);
+      LM.cyl(g, 0.003, 0.006, 0.055, 6, 0, 0.415, -0.03, gold);
+      for (const [cx, cz] of [[-0.06, -0.09], [0.06, -0.09], [0.06, 0.03], [-0.06, 0.03]]) {
+        LM.sph(g, 0.020, cx, 0.24, cz, marble, 10);
+      }
+      // 4 iconic corner white marble minarets
+      for (const [mx, mz] of [[-0.135, -0.165], [0.135, -0.165], [0.135, 0.105], [-0.135, 0.105]]) {
+        LM.cyl(g, 0.009, 0.016, 0.26, 10, mx, 0.22, mz, marble);
+        LM.sph(g, 0.013, mx, 0.36, mz, marble, 8);
+      }
+      routeGroup.add(g);
+    }
+
+    // 30. Beijing (PEK / PKX): Temple of Heaven (Triple-Tiered Cobalt Blue Circular Roofs)
+    function createBeijingTempleOfHeaven(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf1ece1, 0.50, 0.10), crimson = LM.mat(0xb91c1c, 0.55, 0.14);
+      const cobalt = LM.mat(0x1d4ed8, 0.34, 0.38), gold = LM.mat(0xfbbf24, 0.20, 0.88);
+      const warm = LM.glow(2.0, 1.55, 0.55);
+      LM.plaza(g, 0.26, 0x475569, 20);
+      // 3-tier circular white marble altar terrace
+      LM.cyl(g, 0.22, 0.23, 0.035, 24, 0, 0.055, 0, marble);
+      LM.cyl(g, 0.18, 0.19, 0.035, 24, 0, 0.090, 0, marble);
+      LM.cyl(g, 0.14, 0.15, 0.035, 24, 0, 0.125, 0, marble);
+      // Circular Hall of Prayer with triple-tiered glazed cobalt-blue conical roofs!
+      LM.cyl(g, 0.095, 0.095, 0.085, 20, 0, 0.185, 0, crimson);
+      LM.tor(g, 0.098, 0.006, 0, 0.185, 0, warm);
+      LM.cone(g, 0.132, 0.065, 22, 0, 0.255, 0, cobalt);
+      LM.cyl(g, 0.072, 0.072, 0.055, 18, 0, 0.295, 0, crimson);
+      LM.cone(g, 0.102, 0.062, 22, 0, 0.345, 0, cobalt);
+      LM.cyl(g, 0.052, 0.052, 0.048, 18, 0, 0.385, 0, crimson);
+      LM.cone(g, 0.076, 0.082, 22, 0, 0.445, 0, cobalt);
+      LM.sph(g, 0.018, 0, 0.495, 0, gold, 12);
+      routeGroup.add(g);
+    }
+
+    // 31. Shanghai (PVG / SHA): Oriental Pearl Tower + Twisting Shanghai Tower
+    function createShanghaiSkyline(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const concrete = LM.mat(0xdce2e8, 0.42, 0.35), pearl = LM.glow(2.15, 0.38, 1.25);
+      const glass = LM.winMat('#16344f', ['#e0f2fe', '#7dd3fc', '#38bdf8', '#f8fafc'], 0x7dd3fc, 0.72, 0.18, 0.85);
+      LM.plaza(g, 0.25, 0x1e293b, 16);
+      // Oriental Pearl Tower (left): tripod legs + 3 iconic glowing magenta-pink stacked spheres
+      const px = -0.065;
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3;
+        const p0 = new THREE.Vector3(px + Math.cos(a) * 0.088, 0.04, Math.sin(a) * 0.088);
+        const p1 = new THREE.Vector3(px + Math.cos(a) * 0.022, 0.22, Math.sin(a) * 0.022);
+        const d = new THREE.Vector3().subVectors(p1, p0);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.015, d.length(), 6), concrete);
+        leg.position.copy(p0).addScaledVector(d, 0.5); leg.quaternion.setFromUnitVectors(UP, d.normalize()); g.add(leg);
+      }
+      LM.cyl(g, 0.018, 0.024, 0.56, 10, px, 0.32, 0, concrete);
+      LM.sph(g, 0.058, px, 0.22, 0, pearl, 16);
+      LM.sph(g, 0.044, px, 0.48, 0, pearl, 16);
+      LM.sph(g, 0.024, px, 0.62, 0, pearl, 12);
+      LM.cyl(g, 0.003, 0.010, 0.24, 6, px, 0.76, 0, concrete);
+      LM.beacon(g, px, 0.89, 0, 0.013);
+      // Companion twisting Shanghai Tower (right)
+      for (let t = 0; t < 6; t++) {
+        const seg = LM.cyl(g, 0.056 - t * 0.006, 0.062 - t * 0.006, 0.115, 3, 0.095, 0.095 + t * 0.11, 0.02, glass);
+        seg.rotation.y = t * 0.34;
+      }
+      routeGroup.add(g);
+    }
+
+    // 32. Taipei (TPE): Taipei 101 (8-Tier Flared Jade-Green Bamboo Pagoda Megatower)
+    function createTaipei101(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const jade = LM.winMat('#164e4a', ['#a7f3d0', '#fef3c7', '#6ee7b7', '#e0f2fe'], 0x5eead4, 0.65, 0.20, 0.80);
+      const gold = LM.glow(2.1, 1.72, 0.42), steel = LM.mat(0xcbd5e1, 0.30, 0.80);
+      LM.plaza(g, 0.24, 0x1e293b, 16);
+      // Tapered base pedestal
+      LM.cyl(g, 0.072, 0.105, 0.18, 4, 0, 0.13, 0, jade).rotation.y = Math.PI / 4;
+      // 8 iconic outward-flaring ruyi bamboo-box pagoda tiers!
+      for (let i = 0; i < 8; i++) {
+        const y = 0.255 + i * 0.076;
+        const rBot = 0.056 - i * 0.0018;
+        const rTop = rBot * 1.24;
+        LM.cyl(g, rTop, rBot, 0.070, 4, 0, y, 0, jade).rotation.y = Math.PI / 4;
+        if (i % 2 === 1) {
+          LM.box(g, rTop * 1.46, 0.009, rTop * 1.46, 0, y + 0.032, 0, gold, false);
+        }
+      }
+      // Crown turret + tall silver spire + beacon
+      LM.cyl(g, 0.022, 0.038, 0.085, 8, 0, 0.87, 0, steel);
+      LM.cyl(g, 0.003, 0.011, 0.20, 6, 0, 1.01, 0, steel);
+      LM.beacon(g, 0, 1.12, 0, 0.014);
+      routeGroup.add(g);
+    }
+
+    // 33. Kuala Lumpur (KUL): Petronas Twin Towers + Glowing Mid-Air Skybridge
+    function createPetronasTwinTowers(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const silver = LM.winMat('#475569', ['#f8fafc', '#e0f2fe', '#bae6fd', '#fef3c7'], 0xe0f2fe, 0.72, 0.18, 0.88);
+      const chrome = LM.mat(0xe2e8f0, 0.20, 0.90), bridgeGlow = LM.glow(1.9, 2.0, 2.2);
+      LM.plaza(g, 0.26, 0x1e293b, 18);
+      for (const tx of [-0.088, 0.088]) {
+        // Faceted Islamic 8-point star silhouette (paired 4-sided prisms rotated 45°)
+        const tiers = [[0.28, 0.052, 0.056], [0.54, 0.042, 0.048], [0.71, 0.030, 0.038], [0.81, 0.018, 0.026]];
+        let prevY = 0.04;
+        for (const [yTop, rt, rb] of tiers) {
+          const h = yTop - prevY, cy = prevY + h * 0.5;
+          LM.cyl(g, rt, rb, h, 8, tx, cy, 0, silver);
+          LM.tor(g, rt * 1.02, 0.004, tx, yTop, 0, bridgeGlow, Math.PI / 2, 16);
+          prevY = yTop;
+        }
+        LM.cyl(g, 0.0025, 0.012, 0.20, 8, tx, 0.91, 0, chrome);
+        LM.beacon(g, tx, 1.02, 0, 0.012);
+      }
+      // Signature double-decker Skybridge at 41st floor + V-legs!
+      LM.box(g, 0.14, 0.024, 0.026, 0, 0.40, 0, bridgeGlow, false);
+      for (const sx of [-1, 1]) {
+        const strut = LM.cyl(g, 0.004, 0.005, 0.11, 6, sx * 0.042, 0.355, 0, chrome);
+        strut.rotation.z = sx * 0.55;
+      }
+      routeGroup.add(g);
+    }
+
+    // 34. Hong Kong (HKG): Bank of China Tower (Geometric Triangular Glass Prism + Neon X-Bracing)
+    function createHongKongBoC(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const glass = LM.winMat('#122b44', ['#e0f2fe', '#7dd3fc', '#f8fafc'], 0x7dd3fc, 0.65, 0.16, 0.88);
+      const neon = LM.glow(1.85, 2.0, 2.2), chrome = LM.mat(0xe2e8f0, 0.25, 0.85);
+      LM.plaza(g, 0.24, 0x0f2942, 16);
+      // 4 stepped triangular quadrants rising to dramatic slanted roof facets
+      const quads = [
+        { x: -0.036, z: -0.036, h: 0.72 },
+        { x: 0.036, z: -0.036, h: 0.56 },
+        { x: -0.036, z: 0.036, h: 0.42 },
+        { x: 0.036, z: 0.036, h: 0.28 }
+      ];
+      for (const q of quads) {
+        LM.box(g, 0.070, q.h, 0.070, q.x, 0.04 + q.h * 0.5, q.z, glass);
+        // Illuminated white-cyan geometric diagonal trim along the facade
+        const diag = LM.box(g, 0.007, 0.10, 0.007, q.x, 0.04 + q.h * 0.5, q.z + 0.037, neon, false);
+        diag.rotation.z = 0.78;
+      }
+      LM.cyl(g, 0.003, 0.008, 0.22, 6, -0.045, 0.87, -0.045, chrome);
+      LM.cyl(g, 0.003, 0.008, 0.22, 6, -0.015, 0.87, -0.015, chrome);
+      LM.beacon(g, -0.045, 0.99, -0.045, 0.012);
+      routeGroup.add(g);
+    }
+
+    // 35. Osaka / Kyoto (KIX / ITM): Five-Story Kyoto Pagoda + Vermilion Torii Gate
+    function createKyotoPagoda(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const wood = LM.mat(0x991b1b, 0.62, 0.12), roof = LM.mat(0x334155, 0.52, 0.25);
+      const gold = LM.mat(0xfbbf24, 0.25, 0.82), warm = LM.glow(2.0, 1.52, 0.62);
+      const torii = LM.mat(0xdc2626, 0.48, 0.14);
+      LM.plaza(g, 0.25, 0x3b6340, 16);
+      // 5 tiered pagoda stories with sweeping slate eaves
+      for (let i = 0; i < 5; i++) {
+        const y = 0.095 + i * 0.088;
+        const w = 0.12 - i * 0.013;
+        LM.box(g, w, 0.055, w, -0.03, y, -0.02, wood);
+        LM.box(g, w * 1.03, 0.014, w * 1.03, -0.03, y, -0.02, warm, false);
+        const eave = LM.cone(g, w * 1.12, 0.042, 4, -0.03, y + 0.042, -0.02, roof);
+        eave.rotation.y = Math.PI / 4;
+      }
+      LM.cyl(g, 0.004, 0.010, 0.16, 6, -0.03, 0.60, -0.02, gold);
+      // Iconic Vermilion Torii Gate in foreground
+      for (const sx of [-0.038, 0.038]) LM.cyl(g, 0.007, 0.008, 0.12, 6, 0.105 + sx, 0.10, 0.09, torii);
+      LM.box(g, 0.12, 0.014, 0.018, 0.105, 0.16, 0.09, torii);
+      LM.box(g, 0.095, 0.010, 0.012, 0.105, 0.135, 0.09, torii);
+      routeGroup.add(g);
+    }
+
+    // 36. Bangkok (BKK): Wat Arun (Temple of Dawn Porcelain & Gold Khmer Prang)
+    function createBangkokWatArun(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x134e5e, 0.30, 0.35), porcelain = LM.mat(0xf1ebe0, 0.42, 0.18);
+      const gold = LM.mat(0xfbbf24, 0.24, 0.85), glow = LM.glow(2.0, 1.62, 0.58);
+      LM.plaza(g, 0.25, 0x134e5e, 16);
+      LM.box(g, 0.28, 0.07, 0.28, 0, 0.07, 0, porcelain);
+      // Soaring central tiered prang spire
+      for (let t = 0; t < 6; t++) {
+        const y = 0.135 + t * 0.065, r = 0.088 - t * 0.012;
+        LM.cyl(g, r * 0.82, r, 0.062, 12, 0, y, 0, t % 2 === 0 ? porcelain : gold);
+      }
+      LM.cone(g, 0.022, 0.11, 10, 0, 0.56, 0, gold);
+      LM.tor(g, 0.072, 0.006, 0, 0.18, 0, glow);
+      // 4 flanking satellite corner prangs
+      for (const [cx, cz] of [[-0.10, -0.10], [0.10, -0.10], [0.10, 0.10], [-0.10, 0.10]]) {
+        LM.cone(g, 0.036, 0.22, 10, cx, 0.20, cz, porcelain);
+        LM.cone(g, 0.014, 0.06, 8, cx, 0.32, cz, gold);
+      }
+      routeGroup.add(g);
+    }
+
+    // 37. Siem Reap / Angkor (REP): Angkor Wat (5 Iconic Lotus-Bud Temple Towers + Moat)
+    function createAngkorWat(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const moat = LM.mat(0x0f4c5c, 0.28, 0.35), stone = LM.mat(0x9a8873, 0.84, 0.08);
+      const warm = LM.glow(1.85, 1.38, 0.55);
+      LM.plaza(g, 0.27, 0x0f4c5c, 16);
+      // Stepped sandstone temple mountain terraces
+      LM.box(g, 0.32, 0.055, 0.28, 0, 0.065, 0, stone);
+      LM.box(g, 0.24, 0.055, 0.20, 0, 0.115, 0, stone);
+      LM.box(g, 0.16, 0.050, 0.14, 0, 0.165, 0, stone);
+      LM.box(g, 0.17, 0.012, 0.15, 0, 0.14, 0, warm, false);
+      // 5 iconic quincunx Khmer lotus-bud towers
+      const addLotus = (x, z, h, r) => {
+        LM.cyl(g, r * 0.72, r, h * 0.65, 10, x, 0.185 + h * 0.32, z, stone);
+        LM.cone(g, r * 0.76, h * 0.45, 10, x, 0.185 + h * 0.85, z, stone);
+      };
+      addLotus(0, 0, 0.28, 0.036);
+      for (const [cx, cz] of [[-0.085, -0.065], [0.085, -0.065], [0.085, 0.065], [-0.085, 0.065]]) {
+        addLotus(cx, cz, 0.19, 0.025);
+      }
+      routeGroup.add(g);
+    }
+
+    // 38. Seattle (SEA): The Space Needle
+    function createSeattleSpaceNeedle(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const white = LM.mat(0xf1f5f9, 0.36, 0.32), orange = LM.mat(0xea580c, 0.42, 0.30);
+      const cyan = LM.glow(0.32, 1.85, 2.25);
+      LM.plaza(g, 0.23, 0x334155, 16);
+      // Central elevator core + 3 pinched hyperboloid steel tripod legs
+      LM.cyl(g, 0.018, 0.022, 0.56, 10, 0, 0.31, 0, white);
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3;
+        const pts = [
+          new THREE.Vector3(Math.cos(a) * 0.105, 0.04, Math.sin(a) * 0.105),
+          new THREE.Vector3(Math.cos(a) * 0.028, 0.36, Math.sin(a) * 0.028),
+          new THREE.Vector3(Math.cos(a) * 0.082, 0.58, Math.sin(a) * 0.082)
+        ];
+        const leg = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.010, 6, false), white);
+        leg.castShadow = true; g.add(leg);
+      }
+      // Iconic cantilevered saucer observation deck ("Galaxy Gold" roof + glowing glass rim)
+      LM.cyl(g, 0.105, 0.055, 0.032, 22, 0, 0.59, 0, white);
+      LM.cyl(g, 0.108, 0.108, 0.024, 22, 0, 0.618, 0, cyan, false);
+      LM.cyl(g, 0.042, 0.115, 0.030, 22, 0, 0.645, 0, orange);
+      LM.cyl(g, 0.003, 0.009, 0.20, 6, 0, 0.76, 0, white);
+      LM.beacon(g, 0, 0.87, 0, 0.013);
+      routeGroup.add(g);
+    }
+
+    // 39. St. Louis (STL): The Gateway Arch (Gleaming Stainless-Steel Weighted Catenary)
+    function createStLouisGatewayArch(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const steel = LM.mat(0xe2e8f0, 0.12, 0.96), glow = LM.glow(1.85, 1.9, 2.1);
+      LM.plaza(g, 0.25, 0x3b6e46, 16);
+      const pts = [];
+      for (let k = -16; k <= 16; k++) {
+        const u = k / 16; // -1..1
+        const x = u * 0.195;
+        // Authentic inverted cosh catenary profile (height == span!)
+        const y = 0.04 + 0.44 * (1 - (Math.cosh(u * 2.15) - 1) / (Math.cosh(2.15) - 1));
+        pts.push(new THREE.Vector3(x, y, 0));
+      }
+      const arch = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.020, 3, false), steel);
+      arch.castShadow = true; g.add(arch);
+      LM.box(g, 0.36, 0.007, 0.05, 0, 0.045, 0, glow, false);
+      routeGroup.add(g);
+    }
+
+    // 40. Las Vegas (LAS): Luxor Black Glass Pyramid + Vertical Space Sky Beam!
+    function createLasVegasLuxor(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const blackGlass = LM.mat(0x090d16, 0.08, 0.94), gold = LM.glow(2.2, 1.65, 0.35);
+      const pink = LM.glow(2.2, 0.28, 1.15), cyan = LM.glow(0.25, 1.9, 2.25);
+      const beamMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 1.95, 2.2), transparent: true, opacity: 0.42, toneMapped: false, blending: THREE.AdditiveBlending, depthWrite: false });
+      LM.plaza(g, 0.26, 0x1e293b, 16);
+      LM.cone(g, 0.175, 0.29, 4, 0, 0.18, 0, blackGlass).rotation.y = Math.PI / 4;
+      // Glowing neon Strip accents + famous Luxor Sky Beam shooting vertically into orbit!
+      LM.box(g, 0.255, 0.010, 0.255, 0, 0.044, 0, gold, false);
+      LM.box(g, 0.085, 0.055, 0.012, 0.12, 0.095, 0.14, pink, false);
+      LM.box(g, 0.070, 0.042, 0.012, -0.12, 0.085, 0.14, cyan, false);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.008, 0.82, 12, 1, true), beamMat);
+      beam.position.y = 0.72; g.add(beam);
+      routeGroup.add(g);
+    }
+
+    // 41. Washington, D.C. (DCA / IAD): Washington Monument Obelisk + U.S. Capitol Dome
+    function createWashingtonDC(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf1efe8, 0.46, 0.10), pool = LM.glow(0.32, 1.45, 1.85);
+      const warm = LM.glow(1.9, 1.75, 1.25);
+      LM.plaza(g, 0.26, 0x3b6e46, 18);
+      // Reflecting Pool along the National Mall
+      LM.box(g, 0.18, 0.010, 0.042, 0, 0.044, 0, pool, false);
+      // Tall crisp white marble Washington Monument obelisk (left)
+      const ox = -0.115;
+      LM.cyl(g, 0.018, 0.030, 0.56, 4, ox, 0.315, 0, marble).rotation.y = Math.PI / 4;
+      LM.cone(g, 0.018, 0.065, 4, ox, 0.628, 0, marble).rotation.y = Math.PI / 4;
+      LM.beacon(g, ox, 0.665, 0, 0.011);
+      // U.S. Capitol Neoclassical wings + glowing white Rotunda Dome (right)
+      const cx = 0.105;
+      LM.box(g, 0.17, 0.08, 0.09, cx, 0.08, 0, marble);
+      LM.cyl(g, 0.044, 0.048, 0.065, 16, cx, 0.15, 0, marble);
+      LM.tor(g, 0.048, 0.006, cx, 0.15, 0, warm);
+      LM.sph(g, 0.045, cx, 0.19, 0, marble, 16);
+      LM.cyl(g, 0.008, 0.014, 0.042, 8, cx, 0.25, 0, warm, false);
+      routeGroup.add(g);
+    }
+
+    // 42. Cancún / Chichén Itzá (CUN): El Castillo (Maya 9-Level Step Pyramid)
+    function createChichenItza(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xc9bfa8, 0.84, 0.05), stair = LM.mat(0xb2a58c, 0.88, 0.04);
+      const warm = LM.glow(1.85, 1.32, 0.52);
+      LM.plaza(g, 0.26, 0x3a6b3e, 16);
+      // 7 crisp stepped limestone Maya pyramid terraces + upper Kukulcán temple
+      for (let t = 0; t < 7; t++) {
+        const w = 0.27 - t * 0.028;
+        LM.box(g, w, 0.032, w, 0, 0.055 + t * 0.030, 0, stone);
+      }
+      LM.box(g, 0.068, 0.048, 0.068, 0, 0.285, 0, stone);
+      LM.box(g, 0.072, 0.012, 0.072, 0, 0.27, 0, warm, false);
+      // 4 sloped grand cardinal staircases
+      for (const rot of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        const st = LM.box(g, 0.042, 0.25, 0.022, Math.sin(rot) * 0.095, 0.155, Math.cos(rot) * 0.095, stair);
+        st.rotation.y = rot; st.rotation.x = -0.52;
+      }
+      routeGroup.add(g);
+    }
+
+    // 43. Cusco / Machu Picchu (CUZ): Terraced Andean Citadel + Huayna Picchu Peak
+    function createMachuPicchu(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const green = LM.mat(0x2f6b3e, 0.88, 0.04, { flatShading: true });
+      const rock = LM.mat(0x64748b, 0.84, 0.08, { flatShading: true }), ruin = LM.mat(0xc9c2b2, 0.82, 0.06);
+      LM.cyl(g, 0.20, 0.27, 0.12, 10, 0, 0.01, 0, green);
+      // Iconic steep sugarloaf Huayna Picchu peak rising behind the Inca terraces!
+      LM.cone(g, 0.115, 0.36, 7, -0.07, 0.22, -0.08, green);
+      LM.cone(g, 0.065, 0.18, 6, -0.07, 0.32, -0.08, rock);
+      // Stepped agricultural terraces + stone Inca citadel walls
+      for (let t = 0; t < 4; t++) {
+        LM.box(g, 0.20 - t * 0.02, 0.024, 0.14 - t * 0.018, 0.06, 0.075 + t * 0.024, 0.05, t % 2 === 0 ? green : ruin);
+      }
+      LM.box(g, 0.08, 0.032, 0.05, 0.05, 0.175, 0.05, ruin);
+      LM.box(g, 0.05, 0.028, 0.04, 0.11, 0.16, 0.08, ruin);
+      routeGroup.add(g);
+    }
+
+    // 44. Buenos Aires (EZE): Obelisco de Buenos Aires on Av. 9 de Julio
+    function createBuenosAiresObelisk(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xf1efe8, 0.48, 0.10), sky = LM.glow(0.38, 1.65, 2.2);
+      const sun = LM.glow(2.15, 1.78, 0.38);
+      LM.plaza(g, 0.24, 0x334155, 16);
+      // Iconic white obelisk + Argentine sky-blue & gold illuminated plaza rings
+      LM.tor(g, 0.16, 0.010, 0, 0.045, 0, sky);
+      LM.cyl(g, 0.022, 0.038, 0.56, 4, 0, 0.315, 0, stone).rotation.y = Math.PI / 4;
+      LM.cone(g, 0.022, 0.068, 4, 0, 0.629, 0, stone).rotation.y = Math.PI / 4;
+      LM.box(g, 0.046, 0.014, 0.046, 0, 0.585, 0, sun, false);
+      routeGroup.add(g);
+    }
+
+    // 45. Honolulu (HNL): Diamond Head Volcanic Crater + Turquoise Waikiki Reef
+    function createHonoluluDiamondHead(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const reef = LM.mat(0x0ea5e9, 0.25, 0.35), sand = LM.mat(0xfde68a, 0.85, 0.04);
+      const tuff = LM.mat(0x6b705c, 0.88, 0.05, { flatShading: true, side: THREE.DoubleSide });
+      const green = LM.mat(0x3f7a44, 0.88, 0.04);
+      LM.plaza(g, 0.27, 0x0ea5e9, 20);
+      LM.cyl(g, 0.22, 0.24, 0.03, 18, 0, 0.045, 0, sand);
+      // Iconic hollow wide volcanic tuff crater cone (slanted rim!)
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.21, 0.18, 16, 1, true), tuff);
+      rim.position.y = 0.135; rim.rotation.z = 0.14; rim.castShadow = true; g.add(rim);
+      LM.cyl(g, 0.105, 0.105, 0.05, 16, 0, 0.08, 0, green);
+      routeGroup.add(g);
+    }
+
+    // 46. Auckland (AKL): Sky Tower (Slender Concrete Needle + Glowing Pod)
+    function createAucklandSkyTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const white = LM.mat(0xe2e8f0, 0.40, 0.28), cyan = LM.glow(0.28, 1.9, 2.25);
+      const purple = LM.glow(1.75, 0.45, 2.2);
+      LM.plaza(g, 0.22, 0x0f3b57, 16);
+      LM.cyl(g, 0.022, 0.036, 0.54, 10, 0, 0.30, 0, white);
+      LM.cyl(g, 0.062, 0.042, 0.065, 16, 0, 0.56, 0, white);
+      LM.tor(g, 0.064, 0.008, 0, 0.56, 0, cyan);
+      LM.cyl(g, 0.032, 0.062, 0.075, 16, 0, 0.63, 0, purple, false);
+      LM.cyl(g, 0.003, 0.012, 0.28, 8, 0, 0.80, 0, white);
+      LM.beacon(g, 0, 0.95, 0, 0.014);
+      routeGroup.add(g);
+    }
+
+    // 47. Uluru / Ayers Rock (AYQ): Giant Red Sandstone Outback Monolith
+    function createUluruMonolith(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const sand = LM.mat(0xb45309, 0.92, 0.04);
+      const uluru = LM.mat(0xc2410c, 0.82, 0.06, { flatShading: true, emissive: new THREE.Color(0x7c2d12), emissiveIntensity: 0.22 });
+      LM.plaza(g, 0.27, 0x9a3412, 16);
+      // Iconic elongated rust-red whaleback flat-topped monolith
+      const rock = LM.cyl(g, 0.11, 0.16, 0.18, 10, 0, 0.125, 0, uluru);
+      rock.scale.set(1.85, 1.0, 0.78);
+      const cap = LM.sph(g, 0.11, 0, 0.20, 0, uluru, 10);
+      cap.scale.set(1.82, 0.32, 0.76);
+      routeGroup.add(g);
+    }
+
+    // 48. Easter Island (IPC): Ahu Tongariki Row of 5 Carved Moai Statues!
+    function createEasterIslandMoai(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const grass = LM.mat(0x4d7c3f, 0.90, 0.04), tuff = LM.mat(0x6b7280, 0.86, 0.06, { flatShading: true });
+      const pukao = LM.mat(0x9a3412, 0.84, 0.05); // Red volcanic scoria topknots!
+      LM.plaza(g, 0.26, 0x4d7c3f, 16);
+      // Stone ahu ceremonial platform
+      LM.box(g, 0.42, 0.048, 0.12, 0, 0.062, 0, LM.mat(0x475569, 0.88, 0.08));
+      // 5 dramatic carved Moai monolith heads with brow ridge, long nose & red pukao hat!
+      for (let i = 0; i < 5; i++) {
+        const x = -0.15 + i * 0.075;
+        const h = 0.175 + (i === 2 ? 0.045 : (i % 2 === 0 ? 0.015 : 0));
+        LM.box(g, 0.044, h * 0.55, 0.036, x, 0.085 + h * 0.28, 0, tuff); // torso
+        LM.box(g, 0.040, h * 0.52, 0.042, x, 0.085 + h * 0.76, 0.004, tuff); // elongated head
+        LM.box(g, 0.042, 0.012, 0.014, x, 0.085 + h * 0.92, 0.025, tuff); // heavy brow ridge
+        LM.box(g, 0.012, h * 0.28, 0.018, x, 0.085 + h * 0.74, 0.028, tuff); // iconic long nose
+        if (i === 1 || i === 2 || i === 3) {
+          LM.cyl(g, 0.022, 0.020, 0.028, 8, x, 0.095 + h, 0.004, pukao); // red pukao topknot
+        }
+      }
+      routeGroup.add(g);
+    }
+
+    // 49. Katowice (KTW): Spodek (Iconic Polish Modernist Tilted Flying-Saucer Arena!)
+    function createKatowiceSpodek(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const steel = LM.mat(0x94a3b8, 0.34, 0.72), roof = LM.mat(0x475569, 0.55, 0.42);
+      const cyan = LM.glow(0.28, 1.85, 2.25);
+      LM.plaza(g, 0.25, 0x334155, 18);
+      LM.cyl(g, 0.11, 0.13, 0.075, 20, 0, 0.075, 0, roof);
+      // Iconic tilted overhanging saucer shell + glowing blue LED facade band
+      const saucer = new THREE.Group();
+      saucer.position.y = 0.145;
+      saucer.rotation.z = 0.09;
+      LM.cyl(saucer, 0.195, 0.125, 0.085, 24, 0, 0, 0, steel);
+      LM.tor(saucer, 0.196, 0.008, 0, 0.032, 0, cyan);
+      LM.cyl(saucer, 0.08, 0.19, 0.032, 24, 0, 0.055, 0, roof);
+      g.add(saucer);
+      routeGroup.add(g);
+    }
+
+    // 50. Kilimanjaro (JRO): Iconic Broad Snow-Capped African Volcanic Peak (Kibo)
+    function createKilimanjaro(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const savanna = LM.mat(0x8a7942, 0.92, 0.04), slope = LM.mat(0x5c5346, 0.88, 0.06, { flatShading: true });
+      const snow = LM.mat(0xf8fafc, 0.48, 0.06, { flatShading: true });
+      LM.plaza(g, 0.27, 0x8a7942, 16);
+      // Broad volcanic Kibo massif + flat glacier summit plateau + Mawenzi side spire
+      LM.cyl(g, 0.075, 0.24, 0.22, 12, -0.02, 0.13, 0, slope);
+      LM.cyl(g, 0.048, 0.092, 0.075, 12, -0.02, 0.275, 0, snow);
+      LM.cone(g, 0.085, 0.20, 6, 0.145, 0.12, 0.03, slope);
+      routeGroup.add(g);
+    }
+
+    // Unified Data-Driven Global Landmark Hub Registry (61 iconic hubs covering 1,070+ OpenFlights airports!)
+    const LANDMARK_HUBS = [
+      // Core & International Mega-Hubs
+      { id: 'tokyo',        lat: 35.66,  lon: 139.75,  radius: 1.8,  build: createTokyoTowerFuji },
+      { id: 'paris',        lat: 48.86,  lon: 2.35,    radius: 1.6,  build: createEiffelTower },
+      { id: 'warsaw',       lat: 52.23,  lon: 21.01,   radius: 1.4,  build: createWarsawPKiN },
+      { id: 'london',       lat: 51.50,  lon: -0.12,   radius: 1.7,  build: createLondonBigBen },
+      { id: 'newyork',      lat: 40.71,  lon: -74.00,  radius: 1.5,  build: createNewYorkSkyline },
+      { id: 'dubai',        lat: 25.20,  lon: 55.27,   radius: 1.8,  build: createDubaiBurjKhalifa },
+      { id: 'losangeles',   lat: 33.94,  lon: -118.40, radius: 1.7,  build: createLAXThemeBuilding },
+      { id: 'sanfrancisco', lat: 37.77,  lon: -122.42, radius: 1.7,  build: createGoldenGateBridge },
+      { id: 'sydney',       lat: -33.86, lon: 151.21,  radius: 2.0,  build: createSydneyOperaHouse },
+      { id: 'cairo',        lat: 30.04,  lon: 31.23,   radius: 2.0,  build: createCairoPyramids },
+      // Remaining 15 Built-In Hubs (26/26 = 100% built-in coverage!)
+      { id: 'gdansk',       lat: 54.35,  lon: 18.65,   radius: 1.3,  build: createGdanskZuraw },
+      { id: 'krakow',       lat: 50.06,  lon: 19.94,   radius: 0.75, build: createKrakowWawel },
+      { id: 'rome',         lat: 41.89,  lon: 12.49,   radius: 1.3,  build: createRomeColosseum },
+      { id: 'istanbul',     lat: 41.01,  lon: 28.98,   radius: 1.8,  build: createIstanbulMosque },
+      { id: 'singapore',    lat: 1.29,   lon: 103.85,  radius: 1.4,  build: createSingaporeMBS },
+      { id: 'toronto',      lat: 43.65,  lon: -79.38,  radius: 1.7,  build: createTorontoCNTower },
+      { id: 'chicago',      lat: 41.88,  lon: -87.63,  radius: 1.7,  build: createChicagoWillis },
+      { id: 'seoul',        lat: 37.55,  lon: 126.99,  radius: 1.8,  build: createSeoulTower },
+      { id: 'capetown',     lat: -33.96, lon: 18.41,   radius: 2.0,  build: createCapeTownTableMountain },
+      { id: 'reykjavik',    lat: 64.14,  lon: -21.93,  radius: 2.0,  build: createReykjavikHallgrimskirkja },
+      { id: 'amsterdam',    lat: 52.37,  lon: 4.90,    radius: 0.95, build: createAmsterdamWindmill },
+      { id: 'frankfurt',    lat: 50.11,  lon: 8.68,    radius: 1.3,  build: createFrankfurtMainhattan },
+      { id: 'madrid',       lat: 40.42,  lon: -3.70,   radius: 1.7,  build: createMadridKioTowers },
+      { id: 'saopaulo',     lat: -23.55, lon: -46.63,  radius: 1.5,  build: createSaoPauloPonte },
+      { id: 'anchorage',    lat: 61.22,  lon: -149.90, radius: 2.5,  build: createAnchorageDenali },
+      // 35 World-Wonder & Global OpenFlights Hubs
+      { id: 'rio',          lat: -22.95, lon: -43.21,  radius: 1.5,  build: createRioChristRedeemer },
+      { id: 'athens',       lat: 37.97,  lon: 23.73,   radius: 1.7,  build: createAthensParthenon },
+      { id: 'berlin',       lat: 52.52,  lon: 13.40,   radius: 1.4,  build: createBerlinFernsehturm },
+      { id: 'barcelona',    lat: 41.40,  lon: 2.17,    radius: 1.5,  build: createBarcelonaSagrada },
+      { id: 'pisa',         lat: 43.72,  lon: 10.40,   radius: 0.85, build: createPisaLeaningTower },
+      { id: 'venice',       lat: 45.43,  lon: 12.34,   radius: 1.0,  build: createVeniceSanMarco },
+      { id: 'brussels',     lat: 50.89,  lon: 4.34,    radius: 0.85, build: createBrusselsAtomium },
+      { id: 'prague',       lat: 50.09,  lon: 14.40,   radius: 1.2,  build: createPragueCastle },
+      { id: 'vienna',       lat: 48.21,  lon: 16.37,   radius: 1.1,  build: createViennaStephansdom },
+      { id: 'budapest',     lat: 47.51,  lon: 19.05,   radius: 1.1,  build: createBudapestParliament },
+      { id: 'moscow',       lat: 55.75,  lon: 37.62,   radius: 1.8,  build: createMoscowStBasils },
+      { id: 'kyiv',         lat: 50.43,  lon: 30.56,   radius: 1.6,  build: createKyivMotherland },
+      { id: 'lisbon',       lat: 38.69,  lon: -9.21,   radius: 1.6,  build: createLisbonBelem },
+      { id: 'agra_delhi',   lat: 27.90,  lon: 77.50,   radius: 2.0,  build: createTajMahal },
+      { id: 'beijing',      lat: 39.88,  lon: 116.41,  radius: 1.9,  build: createBeijingTempleOfHeaven },
+      { id: 'shanghai',     lat: 31.24,  lon: 121.50,  radius: 1.8,  build: createShanghaiSkyline },
+      { id: 'taipei',       lat: 25.03,  lon: 121.56,  radius: 1.6,  build: createTaipei101 },
+      { id: 'kualalumpur',  lat: 3.16,   lon: 101.71,  radius: 1.4,  build: createPetronasTwinTowers },
+      { id: 'hongkong',     lat: 22.28,  lon: 114.16,  radius: 1.4,  build: createHongKongBoC },
+      { id: 'osaka_kyoto',  lat: 34.99,  lon: 135.78,  radius: 1.5,  build: createKyotoPagoda },
+      { id: 'bangkok',      lat: 13.74,  lon: 100.49,  radius: 1.7,  build: createBangkokWatArun },
+      { id: 'angkor',       lat: 13.41,  lon: 103.87,  radius: 1.6,  build: createAngkorWat },
+      { id: 'seattle',      lat: 47.62,  lon: -122.35, radius: 1.15, build: createSeattleSpaceNeedle },
+      { id: 'stlouis',      lat: 38.62,  lon: -90.18,  radius: 1.6,  build: createStLouisGatewayArch },
+      { id: 'lasvegas',     lat: 36.10,  lon: -115.17, radius: 1.6,  build: createLasVegasLuxor },
+      { id: 'washington',   lat: 38.89,  lon: -77.04,  radius: 1.4,  build: createWashingtonDC },
+      { id: 'chichenitza',  lat: 20.68,  lon: -88.57,  radius: 2.2,  build: createChichenItza },
+      { id: 'machupicchu',  lat: -13.16, lon: -72.54,  radius: 1.6,  build: createMachuPicchu },
+      { id: 'buenosaires',  lat: -34.60, lon: -58.38,  radius: 1.8,  build: createBuenosAiresObelisk },
+      { id: 'honolulu',     lat: 21.26,  lon: -157.81, radius: 2.0,  build: createHonoluluDiamondHead },
+      { id: 'auckland',     lat: -36.85, lon: 174.76,  radius: 2.0,  build: createAucklandSkyTower },
+      { id: 'uluru',        lat: -25.34, lon: 131.04,  radius: 2.2,  build: createUluruMonolith },
+      { id: 'easterisland', lat: -27.12, lon: -109.35, radius: 2.0,  build: createEasterIslandMoai },
+      { id: 'katowice',     lat: 50.27,  lon: 19.03,   radius: 0.65, build: createKatowiceSpodek },
+      { id: 'kilimanjaro',  lat: -3.07,  lon: 37.35,   radius: 1.8,  build: createKilimanjaro }
+    ];
+
+    function matchLandmarkHub(lat, lon) {
+      const cosLat = Math.max(0.2, Math.cos(THREE.MathUtils.degToRad(lat)));
+      let best = null;
+      let bestDist = Infinity;
+      for (const hub of LANDMARK_HUBS) {
+        const d = Math.hypot(lat - hub.lat, (lon - hub.lon) * cosLat);
+        if (d < hub.radius && d < bestDist) {
+          bestDist = d;
+          best = hub;
+        }
+      }
+      if (best) return best;
+      if (lat > 59 && lon > -74 && (lon < -26 || (lat > 68 && lon < -17))) {
+        return { id: 'greenland', build: createGreenlandLandmarks };
+      }
+      return null;
     }
 
     function createOffshoreRig(normal, accentHex, scale = 1.0) {
@@ -6585,7 +7866,17 @@
       { iata: 'SIN', icao: 'WSSS', name: 'Singapore Changi Airport', city: 'Singapore', displayCity: 'Singapur', country: 'SG', lat: 1.3502, lon: 103.9940 },
       { iata: 'ICN', icao: 'RKSI', name: 'Incheon International Airport', city: 'Seoul', displayCity: 'Seul', country: 'KR', lat: 37.4691, lon: 126.4510 },
       { iata: 'SYD', icao: 'YSSY', name: 'Sydney Kingsford Smith International Airport', city: 'Sydney', displayCity: 'Sydney', country: 'AU', lat: -33.9461, lon: 151.1772 },
-      { iata: 'GRU', icao: 'SBGR', name: 'São Paulo-Guarulhos International Airport', city: 'Sao Paulo', displayCity: 'São Paulo', country: 'BR', lat: -23.4356, lon: -46.4731 }
+      { iata: 'GRU', icao: 'SBGR', name: 'São Paulo-Guarulhos International Airport', city: 'Sao Paulo', displayCity: 'São Paulo', country: 'BR', lat: -23.4356, lon: -46.4731 },
+      { iata: 'BER', icao: 'EDDB', name: 'Berlin Brandenburg Airport', city: 'Berlin', displayCity: 'Berlin', country: 'DE', lat: 52.3667, lon: 13.5033 },
+      { iata: 'GIG', icao: 'SBGL', name: 'Rio de Janeiro/Galeão International Airport', city: 'Rio de Janeiro', displayCity: 'Rio de Janeiro', country: 'BR', lat: -22.8099, lon: -43.2505 },
+      { iata: 'ATH', icao: 'LGAV', name: 'Athens International Airport', city: 'Athens', displayCity: 'Ateny', country: 'GR', lat: 37.9364, lon: 23.9445 },
+      { iata: 'BCN', icao: 'LEBL', name: 'Josep Tarradellas Barcelona-El Prat Airport', city: 'Barcelona', displayCity: 'Barcelona', country: 'ES', lat: 41.2971, lon: 2.0785 },
+      { iata: 'DEL', icao: 'VIDP', name: 'Indira Gandhi International Airport', city: 'Delhi', displayCity: 'Delhi / Agra', country: 'IN', lat: 28.5665, lon: 77.1031 },
+      { iata: 'PEK', icao: 'ZBAA', name: 'Beijing Capital International Airport', city: 'Beijing', displayCity: 'Pekin', country: 'CN', lat: 40.0801, lon: 116.5846 },
+      { iata: 'KUL', icao: 'WMKK', name: 'Kuala Lumpur International Airport', city: 'Kuala Lumpur', displayCity: 'Kuala Lumpur', country: 'MY', lat: 2.7456, lon: 101.7099 },
+      { iata: 'SEA', icao: 'KSEA', name: 'Seattle-Tacoma International Airport', city: 'Seattle', displayCity: 'Seattle', country: 'US', lat: 47.4490, lon: -122.3093 },
+      { iata: 'IPC', icao: 'SCIP', name: 'Mataveri International Airport', city: 'Easter Island', displayCity: 'Wyspa Wielkanocna', country: 'CL', lat: -27.1648, lon: -109.4219 },
+      { iata: 'KTW', icao: 'EPKT', name: 'Katowice Wojciech Korfanty Airport', city: 'Katowice', displayCity: 'Katowice', country: 'PL', lat: 50.4743, lon: 19.0800 }
     ];
 
     const PL_EXONYMS = {
@@ -6795,6 +8086,7 @@
       disposeGroupChildren(worldDynamicsGroup);
       holoRings.length = 0;
       radarBars.length = 0;
+      spinNodes.length = 0;
       blinkingBeacons.length = 0;
       rigWakeUniformsList.length = 0;
       searchlightUniformsList.length = 0;
@@ -7385,49 +8677,17 @@
         const s = activeStops[i];
         const n = stopNormals[i];
         const col = STOP_COLORS[i % STOP_COLORS.length];
+        const hub = matchLandmarkHub(s.lat, s.lon);
+        const landmarkId = hub ? hub.id : 'tower';
+        const isIcePad = landmarkId === 'greenland';
 
-        const nearTokyo = Math.hypot(s.lat - 35.68, s.lon - 139.65) < 2.6;
-        const inGreenland = s.lat > 59 && s.lon > -65 && s.lon < -15;
-        const nearParis = Math.hypot(s.lat - 48.86, s.lon - 2.35) < 2.2;
-        const nearWarsaw = Math.hypot(s.lat - 52.23, s.lon - 21.01) < 1.8;
-        const nearLondon = Math.hypot(s.lat - 51.50, s.lon - (-0.12)) < 2.2;
-        const nearNewYork = Math.hypot(s.lat - 40.71, s.lon - (-74.00)) < 2.2;
-        const nearDubai = Math.hypot(s.lat - 25.20, s.lon - 55.27) < 2.5;
-        const nearLAX = Math.hypot(s.lat - 33.94, s.lon - (-118.40)) < 2.4;
-        const nearSFO = Math.hypot(s.lat - 37.77, s.lon - (-122.42)) < 2.2;
-        const nearSydney = Math.hypot(s.lat - (-33.86), s.lon - 151.21) < 2.5;
-        const nearCairo = Math.hypot(s.lat - 30.04, s.lon - 31.23) < 2.5;
-
-        pads.push(createLandingPad(n, col, inGreenland, routeScale));
-
-        let landmarkId = 'tower';
-        if (nearTokyo) landmarkId = 'tokyo';
-        else if (inGreenland) landmarkId = 'greenland';
-        else if (nearParis) landmarkId = 'paris';
-        else if (nearWarsaw) landmarkId = 'warsaw';
-        else if (nearLondon) landmarkId = 'london';
-        else if (nearNewYork) landmarkId = 'newyork';
-        else if (nearDubai) landmarkId = 'dubai';
-        else if (nearLAX) landmarkId = 'losangeles';
-        else if (nearSFO) landmarkId = 'sanfrancisco';
-        else if (nearSydney) landmarkId = 'sydney';
-        else if (nearCairo) landmarkId = 'cairo';
+        pads.push(createLandingPad(n, col, isIcePad, routeScale));
         stopLandmarks.push(landmarkId);
 
         const alreadyPlaced = placedLandmarkNormals.some((prev) => prev.dot(n) > 0.9998);
         if (!alreadyPlaced) {
           placedLandmarkNormals.push(n);
-          if (landmarkId === 'tokyo') createCyberpunkTokyo(n, routeScale);
-          else if (landmarkId === 'greenland') createGreenlandLandmarks(n, routeScale);
-          else if (landmarkId === 'paris') createEiffelTower(n, routeScale);
-          else if (landmarkId === 'warsaw') createWarsawPKiN(n, routeScale);
-          else if (landmarkId === 'london') createLondonBigBen(n, routeScale);
-          else if (landmarkId === 'newyork') createNewYorkSkyline(n, routeScale);
-          else if (landmarkId === 'dubai') createDubaiBurjKhalifa(n, routeScale);
-          else if (landmarkId === 'losangeles') createLAXThemeBuilding(n, routeScale);
-          else if (landmarkId === 'sanfrancisco') createGoldenGateBridge(n, routeScale);
-          else if (landmarkId === 'sydney') createSydneyOperaHouse(n, routeScale);
-          else if (landmarkId === 'cairo') createCairoPyramids(n, routeScale);
+          if (hub) hub.build(n, routeScale);
           else createAirportTowerLandmark(n, col, routeScale);
         }
       }
@@ -7910,6 +9170,18 @@
         finaleStart: finaleStep ? finaleStep.t0 : TOTAL_DURATION - 4
       };
     };
+
+    window.__landmarkStats = () => ({
+      hubCount: LANDMARK_HUBS.length + 1,
+      ids: [...LANDMARK_HUBS.map((h) => h.id), 'greenland'],
+      hubs: LANDMARK_HUBS.map((h) => ({ id: h.id, lat: h.lat, lon: h.lon, radius: h.radius })),
+      spinNodeCount: spinNodes.length,
+      builtinCoverage: BUILTIN_AIRPORTS.map((a) => ({
+        code: a.code,
+        city: a.displayCity,
+        landmark: matchLandmarkHub(a.lat, a.lon)?.id || 'tower'
+      }))
+    });
 
     const btnSky = document.getElementById('btn-sky');
     let showSkyMap = false;
@@ -10199,6 +11471,9 @@
       }
       for (const rb of radarBars) {
         rb.rotation.y += dt * 2.2;
+      }
+      for (const sp of spinNodes) {
+        sp.obj.rotation[sp.axis] += dt * sp.speed;
       }
 
       const blinkOn = ((sec * 0.85) % 1) < 0.45;
