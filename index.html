@@ -1843,7 +1843,7 @@
     window.__setUTC = setSunUTC;
 
     // -------------------------------------------------------------------------
-    // 3b. Procedural Web Audio Engine (Zero External Assets — Pure Web Audio API)
+    // 3b. Procedural Web Audio Engine (Realistic Mechanical & Atmospheric Synthesis)
     // -------------------------------------------------------------------------
     function createAudioEngine() {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1861,11 +1861,20 @@
       let wetSend = null;
       let whiteBuf = null;
       let pinkBuf = null;
+      let brownBuf = null;
+      let gearBuf = null;
+      let bearingBuf = null;
+      let softClipCurve = null;
       let loops = null;
 
+      // Mechanical transition state for automatic brake clunks & steel stress creaks
+      let prevHoisting = false;
+      let prevSlewing = false;
+      let lastBrakeTime = -10;
+      let lastCreakTime = -10;
+
       // Event counters for diagnostics
-      const stats = { latches: 0, horns: 0, atc: 0, fwLaunch: 0, fwBurst: 0 };
-      const _tmpPos = new THREE.Vector3();
+      const stats = { latches: 0, horns: 0, atc: 0, fwLaunch: 0, fwBurst: 0, brakeClunks: 0, creaks: 0 };
 
       const btnAudio = document.getElementById('btn-audio');
       const btnAudioIcon = btnAudio.querySelector('.audio-icon');
@@ -1878,14 +1887,56 @@
         return Math.min(max, Math.max(min, val));
       }
 
-      function createNoiseBuffers(audioCtx) {
-        const len = Math.floor(audioCtx.sampleRate * 3.0);
-        const wBuf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
-        const pBuf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+      function makeSoftClipCurve(drive = 2.4, samples = 512) {
+        const curve = new Float32Array(samples);
+        const norm = Math.tanh(drive);
+        for (let i = 0; i < samples; i++) {
+          const x = (i / (samples - 1)) * 2 - 1;
+          curve[i] = Math.tanh(x * drive) / norm;
+        }
+        return curve;
+      }
+
+      // Open-air stereo convolution impulse response (early steel/ground bounce + darkening sky tail)
+      function createOpenAirReverbIR(audioCtx, durationSec = 2.1) {
+        const sr = audioCtx.sampleRate;
+        const len = Math.floor(sr * durationSec);
+        const ir = audioCtx.createBuffer(2, len, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = ir.getChannelData(ch);
+          let lp = 0;
+          for (let i = 0; i < len; i++) {
+            const t = i / sr;
+            const env = Math.exp(-t * 2.45) * (1 - Math.exp(-t * 85));
+            // Progressive high-frequency air absorption over time
+            const alpha = Math.max(0.04, 0.42 * Math.exp(-t * 1.6));
+            const n = Math.random() * 2 - 1;
+            lp += alpha * (n - lp);
+            d[i] = lp * env * 0.42;
+          }
+          // Subtle stereo early reflections (tower mast & ground apron)
+          const taps = ch === 0 ? [[0.024, 0.24], [0.061, 0.14], [0.118, 0.08]] : [[0.031, 0.22], [0.074, 0.13], [0.132, 0.07]];
+          for (const [dt, amp] of taps) {
+            const idx = Math.floor(dt * sr);
+            if (idx < len) d[idx] += amp;
+          }
+        }
+        return ir;
+      }
+
+      function createProceduralBuffers(audioCtx) {
+        const sr = audioCtx.sampleRate;
+        const len = Math.floor(sr * 3.0);
+        const wBuf = audioCtx.createBuffer(2, len, sr);
+        const pBuf = audioCtx.createBuffer(2, len, sr);
+        const bBuf = audioCtx.createBuffer(2, len, sr);
+
         for (let ch = 0; ch < 2; ch++) {
           const wd = wBuf.getChannelData(ch);
           const pd = pBuf.getChannelData(ch);
+          const bd = bBuf.getChannelData(ch);
           let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+          let brown = 0;
           for (let i = 0; i < len; i++) {
             const w = Math.random() * 2 - 1;
             wd[i] = w;
@@ -1897,174 +1948,256 @@
             b5 = -0.7616 * b5 - w * 0.0168980;
             pd[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
             b6 = w * 0.115926;
+
+            brown = (brown + 0.028 * w) / 1.028;
+            bd[i] = Math.max(-1, Math.min(1, brown * 3.4));
           }
         }
-        return { wBuf, pBuf };
+
+        // Helical winch gearbox & grooved wire-rope drum rolling buffer (2.0s seamless)
+        const gLen = Math.floor(sr * 2.0);
+        const gBuf = audioCtx.createBuffer(2, gLen, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const gd = gBuf.getChannelData(ch);
+          const teethPerSec = 46; // helical gear-tooth mesh cadence
+          const totalTeeth = Math.round(teethPerSec * 2.0);
+          let lp = 0;
+          // Base textured bearing grain
+          for (let i = 0; i < gLen; i++) {
+            const n = (Math.random() * 2 - 1) * 0.22;
+            lp += 0.18 * (n - lp);
+            gd[i] = lp;
+          }
+          // Layer slightly jittered mechanical gear-tooth micro-impulses
+          for (let k = 0; k < totalTeeth; k++) {
+            const center = Math.floor(((k + (Math.random() - 0.5) * 0.12) / totalTeeth) * gLen);
+            const amp = 0.42 + Math.random() * 0.34;
+            const ringHz = 620 + Math.random() * 190;
+            const decayS = Math.floor(sr * 0.018);
+            for (let j = 0; j < decayS; j++) {
+              const idx = (center + j + gLen) % gLen;
+              const t = j / sr;
+              const env = Math.exp(-t * 210);
+              gd[idx] += amp * env * (0.55 * Math.sin(2 * Math.PI * ringHz * t) + 0.45 * (Math.random() * 2 - 1));
+            }
+          }
+          // Gentle drum-revolution modulation (3 turns per 2s)
+          for (let i = 0; i < gLen; i++) {
+            const phase = (i / gLen) * Math.PI * 2 * 3 + ch * 0.7;
+            gd[i] = Math.max(-1, Math.min(1, gd[i] * (0.82 + 0.18 * Math.sin(phase))));
+          }
+        }
+
+        // Giant slewing ring roller-bearing & mast structural rumble buffer (2.5s seamless)
+        const rLen = Math.floor(sr * 2.5);
+        const rBuf = audioCtx.createBuffer(2, rLen, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const rd = rBuf.getChannelData(ch);
+          let lp1 = 0, lp2 = 0;
+          for (let i = 0; i < rLen; i++) {
+            const w = Math.random() * 2 - 1;
+            lp1 += 0.032 * (w - lp1);
+            lp2 += 0.014 * (lp1 - lp2);
+            rd[i] = lp2 * 5.2;
+          }
+          // Slow heavy steel roller micro-knocks around the slewing ring
+          const rollers = 34;
+          for (let k = 0; k < rollers; k++) {
+            const center = Math.floor(((k + Math.random() * 0.45) / rollers) * rLen);
+            const amp = 0.25 + Math.random() * 0.35;
+            const f = 68 + Math.random() * 52;
+            const dS = Math.floor(sr * 0.065);
+            for (let j = 0; j < dS; j++) {
+              const idx = (center + j) % rLen;
+              const t = j / sr;
+              rd[idx] += amp * Math.exp(-t * 58) * Math.sin(2 * Math.PI * f * t);
+            }
+          }
+          for (let i = 0; i < rLen; i++) {
+            rd[i] = Math.max(-1, Math.min(1, rd[i] * 0.85));
+          }
+        }
+
+        return { wBuf, pBuf, bBuf, gBuf, rBuf };
       }
 
-      function makeLoopNoise(buf) {
+      function makeLoopNoise(buf, offsetMax = 1.5) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
         src.loop = true;
-        src.start(0, Math.random() * 1.5);
+        src.start(0, Math.random() * offsetMax);
         return src;
       }
 
       function initGraph() {
         if (ctx || !AudioCtx) return;
         ctx = new AudioCtx();
-        const { wBuf, pBuf } = createNoiseBuffers(ctx);
-        whiteBuf = wBuf;
-        pinkBuf = pBuf;
+        const bufs = createProceduralBuffers(ctx);
+        whiteBuf = bufs.wBuf;
+        pinkBuf = bufs.pBuf;
+        brownBuf = bufs.bBuf;
+        gearBuf = bufs.gBuf;
+        bearingBuf = bufs.rBuf;
+        softClipCurve = makeSoftClipCurve(2.4);
 
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -14;
+        comp.threshold.value = -13;
         comp.knee.value = 18;
-        comp.ratio.value = 4.2;
-        comp.attack.value = 0.004;
-        comp.release.value = 0.16;
+        comp.ratio.value = 3.8;
+        comp.attack.value = 0.005;
+        comp.release.value = 0.18;
 
         masterGain = ctx.createGain();
         masterGain.gain.value = 0.0001;
         dryBus = ctx.createGain();
         dryBus.gain.value = 1.0;
 
-        // Lightweight atmospheric stereo delay-reverb for horns, latches & fireworks
+        // Open-air stereo convolution reverb for horns, latches, brake clunks, steel creaks & fireworks
         wetSend = ctx.createGain();
-        wetSend.gain.value = 0.36;
-        const dL = ctx.createDelay(0.6);
-        const dR = ctx.createDelay(0.6);
-        dL.delayTime.value = 0.145;
-        dR.delayTime.value = 0.225;
-        const fbL = ctx.createGain();
-        const fbR = ctx.createGain();
-        fbL.gain.value = 0.28;
-        fbR.gain.value = 0.26;
+        wetSend.gain.value = 0.44;
+        const convolver = ctx.createConvolver();
+        convolver.buffer = createOpenAirReverbIR(ctx, 2.1);
+        const wetHP = ctx.createBiquadFilter();
+        wetHP.type = 'highpass';
+        wetHP.frequency.value = 120;
         const wetLP = ctx.createBiquadFilter();
         wetLP.type = 'lowpass';
-        wetLP.frequency.value = 1900;
-        const wetMerger = ctx.createChannelMerger(2);
+        wetLP.frequency.value = 2800;
 
-        wetSend.connect(wetLP);
-        wetLP.connect(dL);
-        wetLP.connect(dR);
-        dL.connect(fbL); fbL.connect(dR);
-        dR.connect(fbR); fbR.connect(dL);
-        dL.connect(wetMerger, 0, 0);
-        dR.connect(wetMerger, 0, 1);
-        wetMerger.connect(dryBus);
+        wetSend.connect(wetHP);
+        wetHP.connect(convolver);
+        convolver.connect(wetLP);
+        wetLP.connect(dryBus);
 
         dryBus.connect(comp);
         comp.connect(masterGain);
         masterGain.connect(ctx.destination);
 
-        // 1. Orbital Space & Atmospheric Ambience Bed
-        const ambGain = ctx.createGain();
-        ambGain.gain.value = 0.04;
+        // 1. Organic Orbital & High-Altitude Atmospheric Bed (zero synth drone!)
+        const ambSrc = makeLoopNoise(brownBuf);
         const ambLP = ctx.createBiquadFilter();
-        ambLP.type = 'lowpass';
-        ambLP.frequency.value = 115;
-        const ambOsc1 = ctx.createOscillator();
-        ambOsc1.type = 'sine'; ambOsc1.frequency.value = 41.2;
-        const ambOsc2 = ctx.createOscillator();
-        ambOsc2.type = 'triangle'; ambOsc2.frequency.value = 61.74;
-        const ambOsc2G = ctx.createGain(); ambOsc2G.gain.value = 0.35;
-        ambOsc1.connect(ambLP);
-        ambOsc2.connect(ambOsc2G); ambOsc2G.connect(ambLP);
-        ambLP.connect(ambGain);
-        ambGain.connect(dryBus);
-        ambOsc1.start(); ambOsc2.start();
+        ambLP.type = 'lowpass'; ambLP.frequency.value = 92; ambLP.Q.value = 0.7;
+        const ambGain = ctx.createGain(); ambGain.gain.value = 0.045;
+        ambSrc.connect(ambLP); ambLP.connect(ambGain); ambGain.connect(dryBus);
 
         const airSrc = makeLoopNoise(pinkBuf);
         const airBP = ctx.createBiquadFilter();
-        airBP.type = 'bandpass'; airBP.frequency.value = 380; airBP.Q.value = 1.2;
+        airBP.type = 'bandpass'; airBP.frequency.value = 310; airBP.Q.value = 0.9;
         const airLfo = ctx.createOscillator();
-        airLfo.frequency.value = 0.09;
-        const airLfoG = ctx.createGain(); airLfoG.gain.value = 130;
+        airLfo.frequency.value = 0.075;
+        const airLfoG = ctx.createGain(); airLfoG.gain.value = 105;
         airLfo.connect(airLfoG); airLfoG.connect(airBP.frequency);
-        const airGain = ctx.createGain(); airGain.gain.value = 0.015;
+        const airGain = ctx.createGain(); airGain.gain.value = 0.014;
         airSrc.connect(airBP); airBP.connect(airGain); airGain.connect(dryBus);
         airLfo.start();
 
-        // 2. Heavy Industrial Winch Motor & Steel Cable Tension
-        const winchOsc1 = ctx.createOscillator();
-        winchOsc1.type = 'sawtooth'; winchOsc1.frequency.value = 62;
-        const winchOsc2 = ctx.createOscillator();
-        winchOsc2.type = 'triangle'; winchOsc2.frequency.value = 124.4;
-        const winchOsc2G = ctx.createGain(); winchOsc2G.gain.value = 0.45;
-        const winchLP = ctx.createBiquadFilter();
-        winchLP.type = 'lowpass'; winchLP.frequency.value = 360; winchLP.Q.value = 1.8;
-        const winchGain = ctx.createGain(); winchGain.gain.value = 0.0;
-        winchOsc1.connect(winchLP);
-        winchOsc2.connect(winchOsc2G); winchOsc2G.connect(winchLP);
-        winchLP.connect(winchGain); winchGain.connect(dryBus);
-        winchOsc1.start(); winchOsc2.start();
+        // 2. Realistic Tower Crane Hoist: 3-Phase VFD Electric Motor + Helical Gearbox + Sheave Cable
+        const winchMotorMain = ctx.createOscillator();
+        winchMotorMain.type = 'sine'; winchMotorMain.frequency.value = 132;
+        const winchMotorHarm = ctx.createOscillator();
+        winchMotorHarm.type = 'sine'; winchMotorHarm.frequency.value = 396;
+        const winchMotorHarmG = ctx.createGain(); winchMotorHarmG.gain.value = 0.16;
+        const winchMainsHum = ctx.createOscillator();
+        winchMainsHum.type = 'sine'; winchMainsHum.frequency.value = 100; // 50Hz industrial 3-phase hum
+        const winchMainsG = ctx.createGain(); winchMainsG.gain.value = 0.22;
+        const winchMotorLP = ctx.createBiquadFilter();
+        winchMotorLP.type = 'lowpass'; winchMotorLP.frequency.value = 540; winchMotorLP.Q.value = 1.0;
+        const winchMotorGain = ctx.createGain(); winchMotorGain.gain.value = 0.0;
+        winchMotorMain.connect(winchMotorLP);
+        winchMotorHarm.connect(winchMotorHarmG); winchMotorHarmG.connect(winchMotorLP);
+        winchMainsHum.connect(winchMainsG); winchMainsG.connect(winchMotorLP);
+        winchMotorLP.connect(winchMotorGain); winchMotorGain.connect(dryBus);
+        winchMotorMain.start(); winchMotorHarm.start(); winchMainsHum.start();
 
+        // Helical gearbox + grooved cable drum (variable playbackRate mechanical grain)
+        const winchGearSrc = makeLoopNoise(gearBuf, 1.0);
+        const winchGearBody1 = ctx.createBiquadFilter();
+        winchGearBody1.type = 'bandpass'; winchGearBody1.frequency.value = 320; winchGearBody1.Q.value = 2.2;
+        const winchGearBody2 = ctx.createBiquadFilter();
+        winchGearBody2.type = 'bandpass'; winchGearBody2.frequency.value = 880; winchGearBody2.Q.value = 2.6;
+        const winchGearShaper = ctx.createWaveShaper();
+        winchGearShaper.curve = softClipCurve;
+        const winchGearGain = ctx.createGain(); winchGearGain.gain.value = 0.0;
+        winchGearSrc.connect(winchGearBody1);
+        winchGearSrc.connect(winchGearBody2);
+        winchGearBody1.connect(winchGearShaper);
+        winchGearBody2.connect(winchGearShaper);
+        winchGearShaper.connect(winchGearGain);
+        winchGearGain.connect(dryBus);
+
+        // Braided wire rope rolling over grooved steel sheaves (textured friction, NO screechy whistle)
         const cableSrc = makeLoopNoise(pinkBuf);
         const cableBP = ctx.createBiquadFilter();
-        cableBP.type = 'bandpass'; cableBP.frequency.value = 420; cableBP.Q.value = 6.2;
+        cableBP.type = 'bandpass'; cableBP.frequency.value = 460; cableBP.Q.value = 1.35;
+        const cableMod = ctx.createGain(); cableMod.gain.value = 0.78;
+        const cableLfo = ctx.createOscillator();
+        cableLfo.type = 'sine'; cableLfo.frequency.value = 2.4;
+        const cableLfoG = ctx.createGain(); cableLfoG.gain.value = 0.22;
+        cableLfo.connect(cableLfoG); cableLfoG.connect(cableMod.gain);
         const cableGain = ctx.createGain(); cableGain.gain.value = 0.0;
-        cableSrc.connect(cableBP); cableBP.connect(cableGain); cableGain.connect(dryBus);
+        cableSrc.connect(cableBP); cableBP.connect(cableMod); cableMod.connect(cableGain); cableGain.connect(dryBus);
+        cableLfo.start();
 
-        // 3. Planetary Slew Bearing Rumble & Turbine Roar
-        const slewSrc = makeLoopNoise(pinkBuf);
+        // 3. Giant Slewing Ring Roller-Bearing Rumble + Hydraulic Pinion Drive
+        const slewBearSrc = makeLoopNoise(bearingBuf, 1.2);
         const slewLP = ctx.createBiquadFilter();
-        slewLP.type = 'lowpass'; slewLP.frequency.value = 110; slewLP.Q.value = 1.1;
+        slewLP.type = 'lowpass'; slewLP.frequency.value = 145; slewLP.Q.value = 1.2;
         const slewSub = ctx.createOscillator();
-        slewSub.type = 'triangle'; slewSub.frequency.value = 38;
-        const slewSubG = ctx.createGain(); slewSubG.gain.value = 0.35;
+        slewSub.type = 'sine'; slewSub.frequency.value = 38;
+        const slewSubG = ctx.createGain(); slewSubG.gain.value = 0.16;
         const slewLowGain = ctx.createGain(); slewLowGain.gain.value = 0.0;
-        slewSrc.connect(slewLP); slewLP.connect(slewLowGain);
+        slewBearSrc.connect(slewLP); slewLP.connect(slewLowGain);
         slewSub.connect(slewSubG); slewSubG.connect(slewLowGain);
         slewLowGain.connect(dryBus);
         slewSub.start();
 
-        const slewMidSrc = makeLoopNoise(pinkBuf);
-        const slewMidBP = ctx.createBiquadFilter();
-        slewMidBP.type = 'bandpass'; slewMidBP.frequency.value = 220; slewMidBP.Q.value = 2.4;
-        const slewMidGain = ctx.createGain(); slewMidGain.gain.value = 0.0;
-        slewMidSrc.connect(slewMidBP); slewMidBP.connect(slewMidGain); slewMidGain.connect(dryBus);
+        const slewHydSrc = makeLoopNoise(pinkBuf);
+        const slewHydBP = ctx.createBiquadFilter();
+        slewHydBP.type = 'bandpass'; slewHydBP.frequency.value = 520; slewHydBP.Q.value = 1.4;
+        const slewHydGain = ctx.createGain(); slewHydGain.gain.value = 0.0;
+        slewHydSrc.connect(slewHydBP); slewHydBP.connect(slewHydGain); slewHydGain.connect(dryBus);
 
-        // 4. Stratospheric Wind Rush & Airplane Propeller Flutter
-        const windMidSrc = makeLoopNoise(pinkBuf);
+        // 4. Stratospheric Wind Rush & Unpowered Windmilling Propeller Whoosh
+        const windMidSrc = makeLoopNoise(brownBuf);
         const windMidBP = ctx.createBiquadFilter();
-        windMidBP.type = 'bandpass'; windMidBP.frequency.value = 320; windMidBP.Q.value = 1.5;
+        windMidBP.type = 'bandpass'; windMidBP.frequency.value = 260; windMidBP.Q.value = 1.05;
         const windMidGain = ctx.createGain(); windMidGain.gain.value = 0.0;
         windMidSrc.connect(windMidBP); windMidBP.connect(windMidGain); windMidGain.connect(dryBus);
 
-        const windHighSrc = makeLoopNoise(whiteBuf);
+        const windHighSrc = makeLoopNoise(pinkBuf);
         const windHighBP = ctx.createBiquadFilter();
-        windHighBP.type = 'bandpass'; windHighBP.frequency.value = 1350; windHighBP.Q.value = 3.8;
+        windHighBP.type = 'bandpass'; windHighBP.frequency.value = 1050; windHighBP.Q.value = 2.1;
         const windHighGain = ctx.createGain(); windHighGain.gain.value = 0.0;
         windHighSrc.connect(windHighBP); windHighBP.connect(windHighGain); windHighGain.connect(dryBus);
 
-        const propOsc = ctx.createOscillator();
-        propOsc.type = 'sawtooth'; propOsc.frequency.value = 72;
+        // Soft aerodynamic windmilling propeller flutter (zero engine buzz — 0.00 kg CO2 lore!)
+        const propSrc = makeLoopNoise(pinkBuf);
         const propBP = ctx.createBiquadFilter();
-        propBP.type = 'bandpass'; propBP.frequency.value = 250; propBP.Q.value = 2.4;
-        const propMod = ctx.createGain(); propMod.gain.value = 0.6;
+        propBP.type = 'bandpass'; propBP.frequency.value = 280; propBP.Q.value = 1.9;
+        const propMod = ctx.createGain(); propMod.gain.value = 0.55;
         const propLfo = ctx.createOscillator();
-        propLfo.frequency.value = 24;
-        const propLfoG = ctx.createGain(); propLfoG.gain.value = 0.4;
+        propLfo.type = 'sine'; propLfo.frequency.value = 18;
+        const propLfoG = ctx.createGain(); propLfoG.gain.value = 0.42;
         propLfo.connect(propLfoG); propLfoG.connect(propMod.gain);
         const propGain = ctx.createGain(); propGain.gain.value = 0.0;
-        propOsc.connect(propBP); propBP.connect(propMod); propMod.connect(propGain); propGain.connect(dryBus);
-        propOsc.start(); propLfo.start();
+        propSrc.connect(propBP); propBP.connect(propMod); propMod.connect(propGain); propGain.connect(dryBus);
+        propLfo.start();
 
         loops = {
           ambGain, airGain,
-          winchOsc1, winchOsc2, winchLP, winchGain,
-          cableBP, cableGain,
-          slewLP, slewSub, slewLowGain, slewMidBP, slewMidGain,
+          winchMotorMain, winchMotorHarm, winchMotorLP, winchMotorGain,
+          winchGearSrc, winchGearBody1, winchGearBody2, winchGearGain,
+          cableBP, cableLfo, cableGain,
+          slewBearSrc, slewLP, slewSub, slewLowGain, slewHydBP, slewHydGain,
           windMidBP, windMidGain, windHighBP, windHighGain,
-          propOsc, propGain
+          propLfo, propBP, propGain
         };
       }
 
       function syncMasterGain() {
         if (!ctx || !masterGain) return;
         const now = ctx.currentTime;
-        const target = (enabled && !isTabHidden) ? safe(masterVol, 0, 1, 0.75) * 0.82 : 0.0001;
+        const target = (enabled && !isTabHidden) ? safe(masterVol, 0, 1, 0.75) * 0.84 : 0.0001;
         masterGain.gain.setTargetAtTime(Math.max(0.0001, target), now, 0.06);
       }
 
@@ -2112,179 +2245,291 @@
         return safe(1.18 / (1 + d * falloff), minGain, 1.0, minGain);
       }
 
+      // Electromagnetic hoist / slew brake mechanical clunk
+      function playBrakeClunk(isEngage, prox = 0.7, heavy = false) {
+        if (!enabled || !ctx || isTabHidden) return;
+        const now = ctx.currentTime;
+        if (now - lastBrakeTime < 0.36) return;
+        lastBrakeTime = now;
+        stats.brakeClunks++;
+        const ampScale = safe(prox, 0.2, 1.0, 0.6) * (heavy ? 1.15 : 0.85);
+
+        // Short metallic solenoid impact transient
+        const hit = ctx.createBufferSource();
+        hit.buffer = whiteBuf;
+        const hitBP = ctx.createBiquadFilter();
+        hitBP.type = 'bandpass';
+        hitBP.frequency.value = isEngage ? 760 : 1120;
+        hitBP.Q.value = 2.8;
+        const hitG = ctx.createGain();
+        hitG.gain.setValueAtTime(0.0001, now);
+        hitG.gain.linearRampToValueAtTime(0.14 * ampScale, now + 0.003);
+        hitG.gain.exponentialRampToValueAtTime(0.0001, now + (isEngage ? 0.048 : 0.032));
+        hit.connect(hitBP); hitBP.connect(hitG); hitG.connect(dryBus); hitG.connect(wetSend);
+        hit.start(now, Math.random() * 1.5, 0.07);
+
+        // Heavy steel housing thud
+        const thud = ctx.createOscillator();
+        const thudG = ctx.createGain();
+        thud.type = 'sine';
+        thud.frequency.setValueAtTime(isEngage ? 108 : 132, now);
+        thud.frequency.exponentialRampToValueAtTime(isEngage ? 38 : 54, now + 0.11);
+        thudG.gain.setValueAtTime(0.0001, now);
+        thudG.gain.linearRampToValueAtTime(0.16 * ampScale, now + 0.004);
+        thudG.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+        thud.connect(thudG); thudG.connect(dryBus);
+        thud.start(now); thud.stop(now + 0.15);
+      }
+
+      // Organic stick-slip steel lattice / wire-rope stress creak under heavy load
+      function playSteelCreak(intensity = 0.6, prox = 0.7) {
+        if (!enabled || !ctx || isTabHidden) return;
+        const now = ctx.currentTime;
+        if (now - lastCreakTime < 2.4) return;
+        lastCreakTime = now;
+        stats.creaks++;
+        const amp = safe(intensity * prox, 0.08, 0.9, 0.4);
+        const dur = 0.34 + Math.random() * 0.36;
+        const baseF = 165 + Math.random() * 115;
+
+        const src = ctx.createBufferSource();
+        src.buffer = pinkBuf;
+        const bp1 = ctx.createBiquadFilter();
+        bp1.type = 'bandpass'; bp1.Q.value = 14;
+        bp1.frequency.setValueAtTime(baseF, now);
+        bp1.frequency.exponentialRampToValueAtTime(baseF * (Math.random() > 0.5 ? 1.18 : 0.84), now + dur);
+
+        const bp2 = ctx.createBiquadFilter();
+        bp2.type = 'bandpass'; bp2.Q.value = 16;
+        bp2.frequency.setValueAtTime(baseF * 1.86, now);
+        bp2.frequency.exponentialRampToValueAtTime(baseF * 1.62, now + dur);
+
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, now);
+        env.gain.linearRampToValueAtTime(0.14 * amp, now + dur * 0.32);
+        env.gain.linearRampToValueAtTime(0.09 * amp, now + dur * 0.65);
+        env.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+        src.connect(bp1); src.connect(bp2);
+        bp1.connect(env); bp2.connect(env);
+        env.connect(dryBus); env.connect(wetSend);
+        src.start(now, Math.random() * 1.5, dur + 0.04);
+      }
+
+      // Forged-Steel Shackle Contact + Two-Stage Hydraulic Locking Pin + Pneumatic Bleed
       function playLatch(isAttach, isFinale = false, worldPos = null) {
         if (!enabled || !ctx || isTabHidden) return;
         stats.latches++;
         const now = ctx.currentTime;
         const att = distanceAtten(worldPos, 0.38, 0.09);
 
-        // Metallic clamp partials (heavier clang on attach, crisper unlatch on detach)
-        const freqs = isAttach ? [235, 512, 938, 1690] : [310, 680, 1240];
-        const decay = isAttach ? 0.34 : 0.21;
-        freqs.forEach((f, idx) => {
+        // Stage 1 (0ms): Forged steel impact transient + inharmonic modal ring
+        const imp = ctx.createBufferSource();
+        imp.buffer = whiteBuf;
+        const impBP = ctx.createBiquadFilter();
+        impBP.type = 'bandpass'; impBP.frequency.value = isAttach ? 1450 : 1900; impBP.Q.value = 1.4;
+        const impG = ctx.createGain();
+        impG.gain.setValueAtTime(0.0001, now);
+        impG.gain.linearRampToValueAtTime(0.22 * att, now + 0.002);
+        impG.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
+        imp.connect(impBP); impBP.connect(impG); impG.connect(dryBus); impG.connect(wetSend);
+        imp.start(now, Math.random() * 1.5, 0.045);
+
+        const baseModal = isAttach ? 215 : 272;
+        const modalRatios = [1.0, 2.32, 3.87, 5.41, 7.19];
+        modalRatios.forEach((ratio, idx) => {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
-          osc.type = idx === 0 ? 'triangle' : 'sine';
-          osc.frequency.setValueAtTime(f * (1 + (Math.random() - 0.5) * 0.03), now);
-          osc.frequency.exponentialRampToValueAtTime(f * 0.88, now + decay);
-          const amp = (0.14 / (idx + 1)) * att;
+          osc.type = 'sine';
+          const f = baseModal * ratio * (1 + (Math.random() - 0.5) * 0.02);
+          const decay = (isAttach ? 0.32 : 0.20) / (1 + idx * 0.58);
+          osc.frequency.setValueAtTime(f, now);
+          const amp = (0.11 / Math.pow(idx + 1, 1.15)) * att;
           g.gain.setValueAtTime(0.0001, now);
-          g.gain.linearRampToValueAtTime(amp, now + 0.006);
+          g.gain.linearRampToValueAtTime(amp, now + 0.003);
           g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-          osc.connect(g);
-          g.connect(dryBus);
-          g.connect(wetSend);
-          osc.start(now);
-          osc.stop(now + decay + 0.03);
+          osc.connect(g); g.connect(dryBus); g.connect(wetSend);
+          osc.start(now); osc.stop(now + decay + 0.02);
         });
 
-        // Sub-bass hydraulic lock / touchdown thump
+        // Stage 2 (+48ms): Heavy hydraulic locking pin slam / touchdown thump
+        const t2 = now + (isAttach ? 0.048 : 0.022);
         const thump = ctx.createOscillator();
         const thumpG = ctx.createGain();
         thump.type = 'sine';
-        thump.frequency.setValueAtTime(isAttach ? 96 : 112, now);
-        thump.frequency.exponentialRampToValueAtTime(34, now + 0.22);
-        thumpG.gain.setValueAtTime(0.0001, now);
-        thumpG.gain.linearRampToValueAtTime(0.28 * att, now + 0.008);
-        thumpG.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-        thump.connect(thumpG);
-        thumpG.connect(dryBus);
-        thump.start(now);
-        thump.stop(now + 0.28);
+        thump.frequency.setValueAtTime(isAttach ? 92 : 104, t2);
+        thump.frequency.exponentialRampToValueAtTime(28, t2 + 0.20);
+        thumpG.gain.setValueAtTime(0.0001, t2);
+        thumpG.gain.linearRampToValueAtTime(0.29 * att, t2 + 0.006);
+        thumpG.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.24);
+        thump.connect(thumpG); thumpG.connect(dryBus); thumpG.connect(wetSend);
+        thump.start(t2); thump.stop(t2 + 0.26);
 
-        // Pneumatic air hiss
+        // Stage 3 (+82ms): Pressurized hydraulic/pneumatic valve bleed hiss
+        const t3 = now + 0.082;
         const hiss = ctx.createBufferSource();
         hiss.buffer = whiteBuf;
         const hissF = ctx.createBiquadFilter();
-        hissF.type = 'bandpass';
-        hissF.Q.value = 1.8;
-        const hissDur = isAttach ? 0.24 : 0.38;
-        hissF.frequency.setValueAtTime(isAttach ? 2700 : 3200, now + 0.03);
-        hissF.frequency.exponentialRampToValueAtTime(750, now + 0.03 + hissDur);
+        hissF.type = 'bandpass'; hissF.Q.value = 1.6;
+        const hissDur = isAttach ? 0.22 : 0.36;
+        hissF.frequency.setValueAtTime(isAttach ? 3100 : 3500, t3);
+        hissF.frequency.exponentialRampToValueAtTime(820, t3 + hissDur);
         const hissG = ctx.createGain();
-        hissG.gain.setValueAtTime(0.0001, now + 0.03);
-        hissG.gain.linearRampToValueAtTime(0.11 * att, now + 0.055);
-        hissG.gain.exponentialRampToValueAtTime(0.0001, now + 0.03 + hissDur);
+        hissG.gain.setValueAtTime(0.0001, t3);
+        hissG.gain.linearRampToValueAtTime(0.095 * att, t3 + 0.014);
+        hissG.gain.exponentialRampToValueAtTime(0.0001, t3 + hissDur);
         hiss.connect(hissF); hissF.connect(hissG); hissG.connect(dryBus);
-        hiss.start(now + 0.03, Math.random() * 1.2, hissDur + 0.05);
+        hiss.start(t3, Math.random() * 1.2, hissDur + 0.04);
 
         if (isAttach) {
-          // Telemetry lock confirmation double beep
-          [880, 1318.5].forEach((freq, i) => {
-            const t0 = now + 0.16 + i * 0.075;
+          // Subtle cabin telemetry lock confirmation chirp
+          [1046.5, 1396.9].forEach((freq, i) => {
+            const t0 = now + 0.19 + i * 0.072;
             const b = ctx.createOscillator();
             const bg = ctx.createGain();
             b.type = 'sine';
             b.frequency.setValueAtTime(freq, t0);
             bg.gain.setValueAtTime(0.0001, t0);
-            bg.gain.linearRampToValueAtTime(0.065 * att, t0 + 0.008);
-            bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+            bg.gain.linearRampToValueAtTime(0.042 * att, t0 + 0.006);
+            bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.065);
             b.connect(bg); bg.connect(dryBus); bg.connect(wetSend);
-            b.start(t0); b.stop(t0 + 0.08);
+            b.start(t0); b.stop(t0 + 0.075);
           });
         } else if (isFinale) {
-          // Celebratory 4-note aviation arrival chime
+          // Celebratory warm aviation cabin arrival chime
           [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-            const t0 = now + 0.18 + i * 0.11;
+            const t0 = now + 0.20 + i * 0.115;
             const chime = ctx.createOscillator();
             const cg = ctx.createGain();
-            chime.type = 'triangle';
+            chime.type = 'sine';
             chime.frequency.setValueAtTime(freq, t0);
             cg.gain.setValueAtTime(0.0001, t0);
-            cg.gain.linearRampToValueAtTime(0.095, t0 + 0.014);
-            cg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
+            cg.gain.linearRampToValueAtTime(0.082, t0 + 0.012);
+            cg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.48);
             chime.connect(cg); cg.connect(dryBus); cg.connect(wetSend);
-            chime.start(t0); chime.stop(t0 + 0.45);
+            chime.start(t0); chime.stop(t0 + 0.52);
           });
         }
       }
 
+      // Realistic Dual-Chime Compressed-Air Brass Gantry Horn (Air-Reed + Formant Bells + Open-Air Reverb)
       function playSlewHorn(worldPos = null) {
         if (!enabled || !ctx || isTabHidden) return;
         stats.horns++;
         const now = ctx.currentTime;
         const att = distanceAtten(worldPos, 0.35, 0.07);
-        const notes = [98.0, 98.7, 146.83]; // Deep G2 + detuned G2 + D3 industrial gantry fifth
-        const hornLP = ctx.createBiquadFilter();
-        hornLP.type = 'lowpass';
-        hornLP.Q.value = 1.6;
-        hornLP.frequency.setValueAtTime(220, now);
-        hornLP.frequency.linearRampToValueAtTime(640, now + 0.25);
-        hornLP.frequency.exponentialRampToValueAtTime(210, now + 1.85);
 
-        const hornG = ctx.createGain();
-        hornG.gain.setValueAtTime(0.0001, now);
-        hornG.gain.linearRampToValueAtTime(0.11 * att, now + 0.18);
-        hornG.gain.setValueAtTime(0.095 * att, now + 0.95);
-        hornG.gain.exponentialRampToValueAtTime(0.0001, now + 1.95);
+        // Compressed-air intake & reed turbulence puff
+        const air = ctx.createBufferSource();
+        air.buffer = whiteBuf;
+        const airBP = ctx.createBiquadFilter();
+        airBP.type = 'bandpass'; airBP.frequency.value = 1650; airBP.Q.value = 1.5;
+        const airG = ctx.createGain();
+        airG.gain.setValueAtTime(0.0001, now);
+        airG.gain.linearRampToValueAtTime(0.045 * att, now + 0.035);
+        airG.gain.setValueAtTime(0.022 * att, now + 1.05);
+        airG.gain.exponentialRampToValueAtTime(0.0001, now + 1.55);
+        air.connect(airBP); airBP.connect(airG); airG.connect(dryBus); airG.connect(wetSend);
+        air.start(now, Math.random() * 1.4, 1.65);
 
-        hornLP.connect(hornG);
-        hornG.connect(dryBus);
-        hornG.connect(wetSend);
+        // Brass bell waveshaper + 3 formant bell resonances
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = softClipCurve;
+        const hornBus = ctx.createGain();
+        hornBus.gain.setValueAtTime(0.0001, now + 0.02);
+        hornBus.gain.linearRampToValueAtTime(0.115 * att, now + 0.16);
+        hornBus.gain.setValueAtTime(0.098 * att, now + 1.02);
+        hornBus.gain.exponentialRampToValueAtTime(0.0001, now + 1.75);
 
-        notes.forEach((f, idx) => {
+        const bellFormants = [[310, 2.2, 0.75], [690, 2.8, 0.52], [1280, 3.4, 0.24]];
+        for (const [freq, q, gain] of bellFormants) {
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+          const fg = ctx.createGain(); fg.gain.value = gain;
+          shaper.connect(bp); bp.connect(fg); fg.connect(hornBus);
+        }
+        // Subtle warm low body directly through LP
+        const bodyLP = ctx.createBiquadFilter();
+        bodyLP.type = 'lowpass'; bodyLP.frequency.value = 260;
+        const bodyG = ctx.createGain(); bodyG.gain.value = 0.55;
+        shaper.connect(bodyLP); bodyLP.connect(bodyG); bodyG.connect(hornBus);
+
+        hornBus.connect(dryBus);
+        hornBus.connect(wetSend);
+
+        // Classic heavy maritime/gantry dual-horn dyad (A2 + C#3 with subtle air-pressure sag)
+        const voices = [
+          { f: 110.0, g: 0.72 },
+          { f: 110.55, g: 0.45 },
+          { f: 138.59, g: 0.62 }
+        ];
+        voices.forEach((v) => {
           const osc = ctx.createOscillator();
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(f * 0.985, now);
-          osc.frequency.linearRampToValueAtTime(f, now + 0.22);
-          osc.frequency.linearRampToValueAtTime(f * 0.975, now + 1.9);
-          const og = ctx.createGain();
-          og.gain.value = idx === 2 ? 0.52 : 0.72;
-          osc.connect(og); og.connect(hornLP);
-          osc.start(now); osc.stop(now + 2.0);
+          osc.frequency.setValueAtTime(v.f * 0.96, now + 0.02);
+          osc.frequency.exponentialRampToValueAtTime(v.f, now + 0.14);
+          osc.frequency.linearRampToValueAtTime(v.f * 0.985, now + 1.70);
+          const og = ctx.createGain(); og.gain.value = v.g;
+          osc.connect(og); og.connect(shaper);
+          osc.start(now + 0.02); osc.stop(now + 1.82);
         });
       }
 
+      // Warm Dual-Formant VHF ATC Radio Chatter
       function playATC(kind = 'transit') {
         if (!enabled || !ctx || isTabHidden) return;
         stats.atc++;
         const now = ctx.currentTime;
 
+        const radioShaper = ctx.createWaveShaper();
+        radioShaper.curve = softClipCurve;
         const vhfBP = ctx.createBiquadFilter();
-        vhfBP.type = 'bandpass';
-        vhfBP.frequency.value = 1350;
-        vhfBP.Q.value = 2.0;
-
+        vhfBP.type = 'bandpass'; vhfBP.frequency.value = 1420; vhfBP.Q.value = 1.9;
         const vhfOut = ctx.createGain();
-        vhfOut.gain.value = 0.085;
+        vhfOut.gain.value = 0.075;
+        radioShaper.connect(vhfBP);
         vhfBP.connect(vhfOut);
         vhfOut.connect(dryBus);
 
-        // Initial VHF squelch burst
+        // Initial VHF squelch click & static burst
         const sq1 = ctx.createBufferSource();
         sq1.buffer = whiteBuf;
         const sq1G = ctx.createGain();
         sq1G.gain.setValueAtTime(0.0001, now);
-        sq1G.gain.linearRampToValueAtTime(0.32, now + 0.01);
-        sq1G.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+        sq1G.gain.linearRampToValueAtTime(0.28, now + 0.008);
+        sq1G.gain.exponentialRampToValueAtTime(0.0001, now + 0.068);
         sq1.connect(sq1G); sq1G.connect(vhfBP);
-        sq1.start(now, Math.random() * 1.5, 0.09);
+        sq1.start(now, Math.random() * 1.5, 0.085);
 
-        // Synthesized formant radio cadence (short Apollo-style comms syllables)
+        // Dual-formant vowel transitions simulating clipped tower voice cadence
+        const vowels = [[520, 1450], [680, 1180], [420, 1950], [580, 1620]];
         const syllables = kind === 'finale' ? 5 : 4;
-        let t = now + 0.08;
-        const basePitch = kind === 'lift' ? 148 : 132;
+        let t = now + 0.075;
+        const basePitch = kind === 'lift' ? 142 : 126;
         for (let i = 0; i < syllables; i++) {
-          const dur = 0.085 + (i % 2) * 0.045;
+          const dur = 0.082 + (i % 2) * 0.042;
           const osc = ctx.createOscillator();
           osc.type = 'sawtooth';
-          const p = basePitch * (0.94 + Math.random() * 0.16);
+          const p = basePitch * (0.93 + Math.random() * 0.14);
           osc.frequency.setValueAtTime(p, t);
-          osc.frequency.linearRampToValueAtTime(p * (i === syllables - 1 ? 0.88 : 1.05), t + dur);
+          osc.frequency.linearRampToValueAtTime(p * (i === syllables - 1 ? 0.87 : 1.04), t + dur);
 
+          const [vf1, vf2] = vowels[(i + Math.floor(Math.random() * vowels.length)) % vowels.length];
           const f1 = ctx.createBiquadFilter();
-          f1.type = 'bandpass';
-          f1.frequency.value = 650 + Math.random() * 850;
-          f1.Q.value = 4.5;
+          f1.type = 'bandpass'; f1.frequency.value = vf1; f1.Q.value = 5.0;
+          const f2 = ctx.createBiquadFilter();
+          f2.type = 'bandpass'; f2.frequency.value = vf2; f2.Q.value = 6.0;
 
           const sg = ctx.createGain();
           sg.gain.setValueAtTime(0.0001, t);
-          sg.gain.linearRampToValueAtTime(0.24, t + 0.015);
+          sg.gain.linearRampToValueAtTime(0.20, t + 0.014);
           sg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-          osc.connect(f1); f1.connect(sg); sg.connect(vhfBP);
+          osc.connect(f1); osc.connect(f2);
+          f1.connect(sg); f2.connect(sg);
+          sg.connect(radioShaper);
           osc.start(t); osc.stop(t + dur + 0.02);
-          t += dur + 0.032;
+          t += dur + 0.030;
         }
 
         // Background carrier static during transmission
@@ -2292,24 +2537,25 @@
         carrier.buffer = whiteBuf;
         const cG = ctx.createGain();
         const totalDur = t - now;
-        cG.gain.setValueAtTime(0.09, now + 0.05);
-        cG.gain.setValueAtTime(0.09, t);
-        cG.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        cG.gain.setValueAtTime(0.075, now + 0.045);
+        cG.gain.setValueAtTime(0.075, t);
+        cG.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
         carrier.connect(cG); cG.connect(vhfBP);
-        carrier.start(now + 0.05, Math.random() * 1.2, totalDur + 0.06);
+        carrier.start(now + 0.045, Math.random() * 1.2, totalDur + 0.06);
 
         // Crisp Apollo-style roger beep
         const roger = ctx.createOscillator();
         const rG = ctx.createGain();
         roger.type = 'sine';
-        roger.frequency.setValueAtTime(1750, t + 0.01);
+        roger.frequency.setValueAtTime(1760, t + 0.01);
         rG.gain.setValueAtTime(0.0001, t + 0.01);
-        rG.gain.linearRampToValueAtTime(0.22, t + 0.018);
-        rG.gain.exponentialRampToValueAtTime(0.0001, t + 0.085);
+        rG.gain.linearRampToValueAtTime(0.18, t + 0.016);
+        rG.gain.exponentialRampToValueAtTime(0.0001, t + 0.082);
         roger.connect(rG); rG.connect(vhfBP);
-        roger.start(t + 0.01); roger.stop(t + 0.095);
+        roger.start(t + 0.01); roger.stop(t + 0.092);
       }
 
+      // Realistic Mortar Thump + Propellant Lift Charge + Subtle Air Whistle
       function playFireworkLaunch(fuseSec = 0.55, worldPos = null) {
         if (!enabled || !ctx || isTabHidden) return;
         stats.fwLaunch++;
@@ -2317,32 +2563,49 @@
         const dur = safe(fuseSec, 0.25, 1.1, 0.55);
         const att = distanceAtten(worldPos, 0.26, 0.13);
 
-        // Rising rocket whistle
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine';
-        const fStart = 520 + Math.random() * 240;
-        osc.frequency.setValueAtTime(fStart, now);
-        osc.frequency.exponentialRampToValueAtTime(fStart * 2.7, now + dur);
-        g.gain.setValueAtTime(0.0001, now);
-        g.gain.linearRampToValueAtTime(0.042 * att, now + 0.06);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-        osc.connect(g); g.connect(dryBus); g.connect(wetSend);
-        osc.start(now); osc.stop(now + dur + 0.03);
+        // Mortar tube lift-charge thump
+        const thump = ctx.createOscillator();
+        const thumpG = ctx.createGain();
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(125 + Math.random() * 25, now);
+        thump.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+        thumpG.gain.setValueAtTime(0.0001, now);
+        thumpG.gain.linearRampToValueAtTime(0.22 * att, now + 0.005);
+        thumpG.gain.exponentialRampToValueAtTime(0.0001, now + 0.17);
+        thump.connect(thumpG); thumpG.connect(dryBus); thumpG.connect(wetSend);
+        thump.start(now); thump.stop(now + 0.19);
 
-        // Rocket propellant sizzle
+        // Propellant sizzle & rushing shell air trail
         const siz = ctx.createBufferSource();
         siz.buffer = whiteBuf;
         const sizBP = ctx.createBiquadFilter();
-        sizBP.type = 'bandpass'; sizBP.frequency.value = 3200; sizBP.Q.value = 2.0;
+        sizBP.type = 'bandpass'; sizBP.Q.value = 1.8;
+        sizBP.frequency.setValueAtTime(2200, now);
+        sizBP.frequency.exponentialRampToValueAtTime(4200, now + dur);
         const sizG = ctx.createGain();
         sizG.gain.setValueAtTime(0.0001, now);
-        sizG.gain.linearRampToValueAtTime(0.055 * att, now + 0.04);
+        sizG.gain.linearRampToValueAtTime(0.068 * att, now + 0.025);
         sizG.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-        siz.connect(sizBP); sizBP.connect(sizG); sizG.connect(dryBus);
+        siz.connect(sizBP); sizBP.connect(sizG); sizG.connect(dryBus); sizG.connect(wetSend);
         siz.start(now, Math.random() * 1.5, dur + 0.04);
+
+        // Subtle breathy ascending shell whistle (far less cartoon than raw sine)
+        if (Math.random() < 0.45) {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          const fStart = 680 + Math.random() * 260;
+          osc.frequency.setValueAtTime(fStart, now + 0.03);
+          osc.frequency.exponentialRampToValueAtTime(fStart * 2.1, now + dur);
+          g.gain.setValueAtTime(0.0001, now + 0.03);
+          g.gain.linearRampToValueAtTime(0.020 * att, now + 0.09);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+          osc.connect(g); g.connect(dryBus); g.connect(wetSend);
+          osc.start(now + 0.03); osc.stop(now + dur + 0.03);
+        }
       }
 
+      // Supersonic Crack + Chest Shockwave + Rolling Open-Air Thunder Tail + Multi-Band Spark Crackle
       function playFireworkBurst(style = 'chrysanthemum', worldPos = null) {
         if (!enabled || !ctx || isTabHidden || activeBurstCount > 6) return;
         stats.fwBurst++;
@@ -2350,50 +2613,62 @@
         const now = ctx.currentTime;
         const att = distanceAtten(worldPos, 0.30, 0.12);
 
-        // Sub-bass shockwave boom
+        // Sharp supersonic initial crack (12ms)
+        const crack = ctx.createBufferSource();
+        crack.buffer = whiteBuf;
+        const crackHP = ctx.createBiquadFilter();
+        crackHP.type = 'highpass'; crackHP.frequency.value = 950;
+        const crackG = ctx.createGain();
+        crackG.gain.setValueAtTime(0.0001, now);
+        crackG.gain.linearRampToValueAtTime(0.28 * att, now + 0.002);
+        crackG.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+        crack.connect(crackHP); crackHP.connect(crackG); crackG.connect(dryBus); crackG.connect(wetSend);
+        crack.start(now, Math.random() * 1.5, 0.05);
+
+        // Deep chest shockwave boom
         const sub = ctx.createOscillator();
         const subG = ctx.createGain();
         sub.type = 'sine';
-        sub.frequency.setValueAtTime(style === 'ring' ? 128 : 102 + Math.random() * 22, now);
-        sub.frequency.exponentialRampToValueAtTime(24, now + 0.42);
+        sub.frequency.setValueAtTime(style === 'ring' ? 116 : 94 + Math.random() * 18, now);
+        sub.frequency.exponentialRampToValueAtTime(22, now + 0.45);
         subG.gain.setValueAtTime(0.0001, now);
-        subG.gain.linearRampToValueAtTime(0.34 * att, now + 0.006);
-        subG.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+        subG.gain.linearRampToValueAtTime(0.35 * att, now + 0.005);
+        subG.gain.exponentialRampToValueAtTime(0.0001, now + 0.52);
         sub.connect(subG); subG.connect(dryBus); subG.connect(wetSend);
-        sub.start(now); sub.stop(now + 0.52);
+        sub.start(now); sub.stop(now + 0.55);
 
-        // Explosion crack & rumble
+        // Rolling open-air sky thunder rumble
         const boom = ctx.createBufferSource();
-        boom.buffer = pinkBuf;
+        boom.buffer = brownBuf;
         const boomLP = ctx.createBiquadFilter();
         boomLP.type = 'lowpass';
-        boomLP.frequency.setValueAtTime(1600, now);
-        boomLP.frequency.exponentialRampToValueAtTime(140, now + 0.65);
+        boomLP.frequency.setValueAtTime(980, now);
+        boomLP.frequency.exponentialRampToValueAtTime(115, now + 0.85);
         const boomG = ctx.createGain();
         boomG.gain.setValueAtTime(0.0001, now);
-        boomG.gain.linearRampToValueAtTime(0.32 * att, now + 0.005);
-        boomG.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+        boomG.gain.linearRampToValueAtTime(0.34 * att, now + 0.008);
+        boomG.gain.exponentialRampToValueAtTime(0.0001, now + 0.92);
         boom.connect(boomLP); boomLP.connect(boomG); boomG.connect(dryBus); boomG.connect(wetSend);
-        boom.start(now, Math.random() * 1.2, 0.78);
+        boom.start(now, Math.random() * 1.2, 0.98);
 
-        // Style-specific sparkle/crackle tail
-        const crackles = style === 'willow' ? 11 : style === 'tricolore' ? 6 : style === 'chrysanthemum' ? 8 : 4;
-        const spread = style === 'willow' ? 1.15 : 0.62;
+        // Style-specific organic spark crackle tail
+        const crackles = style === 'willow' ? 12 : style === 'tricolore' ? 7 : style === 'chrysanthemum' ? 9 : 5;
+        const spread = style === 'willow' ? 1.25 : 0.68;
         for (let i = 0; i < crackles; i++) {
-          const ct = now + 0.09 + Math.random() * spread;
+          const ct = now + 0.08 + Math.random() * spread;
           const cr = ctx.createBufferSource();
           cr.buffer = whiteBuf;
           const crBP = ctx.createBiquadFilter();
           crBP.type = 'bandpass';
-          crBP.frequency.value = 2200 + Math.random() * 3400;
-          crBP.Q.value = 3.2;
+          crBP.frequency.value = 1900 + Math.random() * 3800;
+          crBP.Q.value = 2.6;
           const crG = ctx.createGain();
-          const cAmp = (style === 'willow' ? 0.075 : 0.09) * att * (1 - (ct - now) / (spread + 0.35));
+          const cAmp = (style === 'willow' ? 0.068 : 0.085) * att * (1 - (ct - now) / (spread + 0.35));
           crG.gain.setValueAtTime(0.0001, ct);
-          crG.gain.linearRampToValueAtTime(Math.max(0.001, cAmp), ct + 0.004);
-          crG.gain.exponentialRampToValueAtTime(0.0001, ct + 0.055 + Math.random() * 0.04);
+          crG.gain.linearRampToValueAtTime(Math.max(0.001, cAmp), ct + 0.003);
+          crG.gain.exponentialRampToValueAtTime(0.0001, ct + 0.045 + Math.random() * 0.045);
           cr.connect(crBP); crBP.connect(crG); crG.connect(dryBus); crG.connect(wetSend);
-          cr.start(ct, Math.random() * 2.0, 0.12);
+          cr.start(ct, Math.random() * 2.0, 0.11);
         }
 
         setTimeout(() => { activeBurstCount = Math.max(0, activeBurstCount - 1); }, 650);
@@ -2407,19 +2682,22 @@
         if (!enabled || !ctx || !loops || isTabHidden) return;
         const now = ctx.currentTime;
 
-        // Space bed adapts gently to orbital altitude
+        // Space/atmospheric bed adapts gently to orbital altitude
         const orbitBlend = safe((telemetry.camAlt - 1.5) / 10.0, 0, 1, 0.5);
-        loops.ambGain.gain.setTargetAtTime(0.025 + orbitBlend * 0.032, now, 0.25);
-        loops.airGain.gain.setTargetAtTime(0.010 + (1 - orbitBlend) * 0.016, now, 0.25);
+        loops.ambGain.gain.setTargetAtTime(0.028 + orbitBlend * 0.036, now, 0.25);
+        loops.airGain.gain.setTargetAtTime(0.008 + (1 - orbitBlend) * 0.018, now, 0.25);
 
         if (telemetry.paused) {
-          loops.winchGain.gain.setTargetAtTime(0.0, now, 0.10);
-          loops.cableGain.gain.setTargetAtTime(0.0, now, 0.10);
-          loops.slewLowGain.gain.setTargetAtTime(0.0, now, 0.10);
-          loops.slewMidGain.gain.setTargetAtTime(0.0, now, 0.10);
-          loops.windMidGain.gain.setTargetAtTime(0.0, now, 0.10);
-          loops.windHighGain.gain.setTargetAtTime(0.0, now, 0.10);
+          loops.winchMotorGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.winchGearGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.cableGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.slewLowGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.slewHydGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.windMidGain.gain.setTargetAtTime(0.0, now, 0.08);
+          loops.windHighGain.gain.setTargetAtTime(0.0, now, 0.08);
           loops.propGain.gain.setTargetAtTime(0.0, now, 0.08);
+          prevHoisting = false;
+          prevSlewing = false;
           return;
         }
 
@@ -2428,41 +2706,71 @@
         const slewNorm = safe(telemetry.slewTipSpeed / 1.45, 0, 1.4, 0);
         const windNorm = safe(telemetry.planeSpeed / 1.4, 0, 1.4, 0);
         const swayNorm = safe(telemetry.pendulumSway * 3.8, 0, 1.0, 0);
-        const loadBoost = telemetry.isLoaded ? 1.35 : 0.72;
-        const planeProx = safe(1.15 / (1 + telemetry.camToPlane * 0.14), 0.28, 1.0, 0.45);
-        const craneProx = safe(1.15 / (1 + telemetry.camToCrane * 0.11), 0.30, 1.0, 0.5);
+        const loadBoost = telemetry.isLoaded ? 1.32 : 0.72;
+        const planeProx = safe(1.15 / (1 + telemetry.camToPlane * 0.14), 0.26, 1.0, 0.45);
+        const craneProx = safe(1.15 / (1 + telemetry.camToCrane * 0.11), 0.28, 1.0, 0.5);
 
-        // Winch motor pitch & volume
-        const baseWinchHz = telemetry.hoistDir >= 0 ? 64 : 52;
-        const wFreq = safe(baseWinchHz + hoistNorm * 46 * (telemetry.isLoaded ? 0.86 : 1.08), 40, 180, 64);
-        loops.winchOsc1.frequency.setTargetAtTime(wFreq, now, 0.08);
-        loops.winchOsc2.frequency.setTargetAtTime(wFreq * 2.01, now, 0.08);
-        loops.winchLP.frequency.setTargetAtTime(safe(280 + hoistNorm * 520, 180, 1100, 320), now, 0.09);
-        loops.winchGain.gain.setTargetAtTime(safe(hoistNorm * 0.095 * loadBoost * craneProx, 0, 0.16, 0), now, 0.08);
+        // Automatic electromagnetic hoist & slew brake clunks on motion start/stop
+        const isHoistingNow = hoistNorm > 0.07;
+        const isSlewingNow = slewNorm > 0.06;
+        if (isHoistingNow !== prevHoisting) {
+          playBrakeClunk(!isHoistingNow, craneProx, telemetry.isLoaded);
+          prevHoisting = isHoistingNow;
+        }
+        if (isSlewingNow !== prevSlewing) {
+          if (!isSlewingNow) playBrakeClunk(true, craneProx * 0.85, telemetry.isLoaded);
+          prevSlewing = isSlewingNow;
+        }
 
-        // Steel cable tension groan
-        const cableActivity = Math.max(hoistNorm * 0.85, swayNorm * (telemetry.isLoaded ? 1.0 : 0.35));
-        loops.cableBP.frequency.setTargetAtTime(safe(340 + swayNorm * 340 + hoistNorm * 260, 220, 1200, 420), now, 0.1);
-        loops.cableGain.gain.setTargetAtTime(safe(cableActivity * 0.085 * loadBoost * craneProx, 0, 0.13, 0), now, 0.09);
+        // Occasional organic steel truss / cable stress creak when loaded & swinging or hoisting
+        if (telemetry.isLoaded && (swayNorm > 0.28 || (hoistNorm > 0.45 && swayNorm > 0.10))) {
+          playSteelCreak(Math.max(swayNorm, hoistNorm * 0.65), craneProx);
+        }
 
-        // Planetary slew rumble & turbine
-        loops.slewLP.frequency.setTargetAtTime(safe(95 + slewNorm * 185, 80, 340, 110), now, 0.12);
-        loops.slewSub.frequency.setTargetAtTime(safe(35 + slewNorm * 24, 30, 80, 38), now, 0.12);
+        // 1. 3-Phase VFD Electric Hoist Motor (subtle load-dependent pitch sag, zero harsh sawtooth)
+        const dirOffset = telemetry.hoistDir >= 0 ? 118 : 96;
+        const loadPitchFactor = telemetry.isLoaded ? 0.87 : 1.05;
+        const motorHz = safe((dirOffset + hoistNorm * 78) * loadPitchFactor, 72, 260, 120);
+        loops.winchMotorMain.frequency.setTargetAtTime(motorHz, now, 0.09);
+        loops.winchMotorHarm.frequency.setTargetAtTime(motorHz * 3.0, now, 0.09);
+        loops.winchMotorLP.frequency.setTargetAtTime(safe(340 + hoistNorm * 420, 260, 960, 420), now, 0.1);
+        loops.winchMotorGain.gain.setTargetAtTime(safe(hoistNorm * 0.058 * loadBoost * craneProx, 0, 0.095, 0), now, 0.08);
+
+        // 2. Helical Gearbox & Grooved Drum Rolling Texture (playbackRate tracks hoist velocity!)
+        const gearRate = safe(0.45 + hoistNorm * 1.15 * loadPitchFactor, 0.35, 2.2, 0.8);
+        loops.winchGearSrc.playbackRate.setTargetAtTime(gearRate, now, 0.08);
+        loops.winchGearBody1.frequency.setTargetAtTime(safe(280 + hoistNorm * 140, 220, 520, 320), now, 0.1);
+        loops.winchGearBody2.frequency.setTargetAtTime(safe(760 + hoistNorm * 320, 640, 1300, 880), now, 0.1);
+        loops.winchGearGain.gain.setTargetAtTime(safe(hoistNorm * 0.16 * loadBoost * craneProx, 0, 0.22, 0), now, 0.07);
+
+        // 3. Braided Steel Wire-Rope Sheave Rolling Friction
+        const cableActivity = Math.max(hoistNorm * 0.90, swayNorm * (telemetry.isLoaded ? 0.72 : 0.20));
+        loops.cableBP.frequency.setTargetAtTime(safe(360 + hoistNorm * 280 + swayNorm * 160, 260, 920, 440), now, 0.1);
+        loops.cableLfo.frequency.setTargetAtTime(safe(1.5 + hoistNorm * 3.4, 1.0, 6.5, 2.2), now, 0.1);
+        loops.cableGain.gain.setTargetAtTime(safe(cableActivity * 0.078 * loadBoost * craneProx, 0, 0.115, 0), now, 0.09);
+
+        // 4. Giant Slewing Ring Roller-Bearing Rumble & Hydraulic Pinion Drive
+        const bearRate = safe(0.55 + slewNorm * 0.95, 0.45, 2.0, 0.85);
+        loops.slewBearSrc.playbackRate.setTargetAtTime(bearRate, now, 0.11);
+        loops.slewLP.frequency.setTargetAtTime(safe(105 + slewNorm * 155, 85, 310, 130), now, 0.12);
+        loops.slewSub.frequency.setTargetAtTime(safe(34 + slewNorm * 16, 28, 62, 38), now, 0.14);
         loops.slewLowGain.gain.setTargetAtTime(safe(slewNorm * 0.24 * craneProx, 0, 0.30, 0), now, 0.11);
-        loops.slewMidBP.frequency.setTargetAtTime(safe(165 + slewNorm * 520, 120, 950, 220), now, 0.12);
-        loops.slewMidGain.gain.setTargetAtTime(safe(slewNorm * 0.105 * craneProx, 0, 0.15, 0), now, 0.11);
+        loops.slewHydBP.frequency.setTargetAtTime(safe(380 + slewNorm * 580, 280, 1250, 500), now, 0.12);
+        loops.slewHydGain.gain.setTargetAtTime(safe(slewNorm * 0.075 * craneProx, 0, 0.11, 0), now, 0.11);
 
-        // Stratospheric wind rush
+        // 5. Stratospheric Wind Rush
         const altFactor = safe(telemetry.planeAlt / 0.45, 0.25, 1.35, 0.5);
-        loops.windMidBP.frequency.setTargetAtTime(safe(240 + windNorm * 680, 180, 1400, 300), now, 0.12);
-        loops.windMidGain.gain.setTargetAtTime(safe(windNorm * 0.14 * altFactor * planeProx, 0, 0.20, 0), now, 0.12);
-        loops.windHighBP.frequency.setTargetAtTime(safe(1100 + windNorm * 1550, 900, 3600, 1300), now, 0.12);
-        loops.windHighGain.gain.setTargetAtTime(safe(Math.max(0, windNorm - 0.18) * 0.055 * altFactor * planeProx, 0, 0.09, 0), now, 0.12);
+        loops.windMidBP.frequency.setTargetAtTime(safe(210 + windNorm * 520, 160, 1100, 260), now, 0.12);
+        loops.windMidGain.gain.setTargetAtTime(safe(windNorm * 0.145 * altFactor * planeProx, 0, 0.20, 0), now, 0.12);
+        loops.windHighBP.frequency.setTargetAtTime(safe(880 + windNorm * 1350, 720, 3100, 1050), now, 0.12);
+        loops.windHighGain.gain.setTargetAtTime(safe(Math.max(0, windNorm - 0.16) * 0.052 * altFactor * planeProx, 0, 0.085, 0), now, 0.12);
 
-        // Close-up miniature airplane propeller buzz while hooked
+        // 6. Close-Up Unpowered Windmilling Propeller Air Whoosh
         const propClose = telemetry.isLoaded ? safe(1.0 - (telemetry.camToPlane - 0.8) / 4.2, 0, 1, 0) : 0;
-        loops.propOsc.frequency.setTargetAtTime(safe(68 * Math.sqrt(speedScale), 45, 130, 68), now, 0.1);
-        loops.propGain.gain.setTargetAtTime(safe(propClose * 0.055, 0, 0.065, 0), now, 0.1);
+        const propAirFactor = safe(0.35 + windNorm * 0.75, 0.35, 1.2, 0.5);
+        loops.propLfo.frequency.setTargetAtTime(safe((14 + windNorm * 14) * Math.sqrt(speedScale), 10, 36, 18), now, 0.1);
+        loops.propBP.frequency.setTargetAtTime(safe(240 + windNorm * 180, 180, 560, 280), now, 0.1);
+        loops.propGain.gain.setTargetAtTime(safe(propClose * propAirFactor * 0.052, 0, 0.065, 0), now, 0.1);
       }
 
       btnAudio.addEventListener('click', toggle);
@@ -2499,6 +2807,8 @@
         playATC,
         playFireworkLaunch,
         playFireworkBurst,
+        playBrakeClunk,
+        playSteelCreak,
         update,
         getDebugState: () => ({
           enabled,
