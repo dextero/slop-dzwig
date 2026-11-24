@@ -7505,7 +7505,1046 @@
       routeGroup.add(g);
     }
 
-    // Unified Data-Driven Global Landmark Hub Registry (112 iconic hubs covering ~1,800 OpenFlights airports!)
+    // ==================== PASS 3: 53 MORE GLOBAL LANDMARKS (165 HUBS TOTAL!) ====================
+
+    // 102. Bydgoszcz (BZG): Spichrze nad Brdą Half-Timbered Granaries + Opera Nova Rotunda
+    function createBydgoszczGranaries(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0c4a6e, 0.25, 0.36), cream = LM.mat(0xf5e9d3, 0.78, 0.06);
+      const timber = LM.mat(0x451a03, 0.85, 0.05), roof = LM.mat(0x9a3412, 0.75, 0.08);
+      const glass = LM.winMat('#1e3a5f', ['#bae6fd', '#fde68a'], '#7dd3fc', 0.58);
+      LM.box(g, 0.44, 0.09, 0.28, 0, -0.015, 0, river, false);
+      // Three iconic historic timber-framed riverside granaries (Spichrze nad Brdą)
+      for (let i = 0; i < 3; i++) {
+        const x = -0.12 + i * 0.072;
+        const h = i === 1 ? 0.14 : 0.12;
+        LM.box(g, 0.062, h, 0.10, x, 0.04 + h * 0.5, -0.02, cream);
+        LM.box(g, 0.064, 0.008, 0.104, x, 0.075, -0.02, timber);
+        LM.box(g, 0.064, 0.008, 0.104, x, 0.115, -0.02, timber);
+        LM.cone(g, 0.052, 0.085, 4, x, 0.04 + h + 0.042, -0.02, roof).rotation.y = Math.PI / 4;
+      }
+      // Opera Nova signature triple-circle white & glass rotunda beside the Brda river
+      LM.cyl(g, 0.075, 0.078, 0.10, 16, 0.12, 0.09, 0.04, glass);
+      LM.cyl(g, 0.078, 0.078, 0.018, 16, 0.12, 0.145, 0.04, cream);
+      routeGroup.add(g);
+    }
+
+    // 103. Lublin (LUZ): Zamek Lubelski White Neo-Gothic Facade + Medieval Brick Donjon & Brama Krakowska
+    function createLublinCastle(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const hill = LM.mat(0x4d7c0f, 0.86, 0.05), white = LM.mat(0xf8fafc, 0.65, 0.08);
+      const brick = LM.mat(0x9a4635, 0.80, 0.08), copper = LM.mat(0x2a7b6f, 0.45, 0.42);
+      LM.plaza(g, 0.25, 0x4d7c0f);
+      LM.cyl(g, 0.17, 0.21, 0.065, 12, 0, 0.065, 0, hill);
+      // White crenelated neo-Gothic Lublin Castle quadrangle + corner turrets
+      LM.box(g, 0.22, 0.12, 0.15, -0.01, 0.155, -0.01, white);
+      for (const sx of [-0.11, 0.09]) {
+        LM.cyl(g, 0.022, 0.024, 0.16, 8, sx, 0.175, 0.06, white);
+      }
+      // 13th-century round Romanesque red-brick Donjon tower
+      LM.cyl(g, 0.042, 0.046, 0.22, 14, -0.07, 0.23, -0.03, brick);
+      LM.cone(g, 0.048, 0.065, 14, -0.07, 0.37, -0.03, LM.mat(0x7c2d12, 0.78, 0.08));
+      // Brama Krakowska (Krakow Gate) octagonal green-helmeted clock tower
+      LM.box(g, 0.055, 0.16, 0.055, 0.125, 0.17, 0.05, brick);
+      LM.cyl(g, 0.026, 0.028, 0.07, 8, 0.125, 0.28, 0.05, white);
+      LM.cone(g, 0.032, 0.09, 8, 0.125, 0.355, 0.05, copper);
+      routeGroup.add(g);
+    }
+
+    // 104. Porto (OPO): Dom Luís I Double-Deck Iron Arch Bridge + Ribeira Terracotta Houses
+    function createPortoBridge(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0c4a6e, 0.24, 0.38), iron = LM.mat(0x334155, 0.45, 0.72);
+      const stone = LM.mat(0xd6d3d1, 0.78, 0.10), roof = LM.mat(0xc2410c, 0.76, 0.08);
+      LM.box(g, 0.48, 0.09, 0.26, 0, -0.015, 0, river, false);
+      // Iconic giant wrought-iron semicircular arch spanning the Douro!
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.016, 8, 24, Math.PI), iron);
+      arch.position.set(0, 0.045, 0); g.add(arch);
+      // Upper metro deck + lower road deck + tall iron piers
+      LM.box(g, 0.44, 0.016, 0.048, 0, 0.205, 0, iron);
+      LM.box(g, 0.34, 0.014, 0.044, 0, 0.085, 0, iron);
+      for (const px of [-0.155, 0.155]) {
+        LM.box(g, 0.036, 0.18, 0.055, px, 0.12, 0, stone);
+      }
+      // Colorful Ribeira riverbank houses
+      [0xf59e0b, 0xdc2626, 0x2563eb, 0xfef3c7].forEach((c, i) => {
+        LM.box(g, 0.038, 0.075, 0.045, -0.12 + i * 0.042, 0.07, 0.085, LM.mat(c, 0.74, 0.08));
+        LM.cone(g, 0.028, 0.025, 4, -0.12 + i * 0.042, 0.12, 0.085, roof).rotation.y = Math.PI / 4;
+      });
+      routeGroup.add(g);
+    }
+
+    // 105. Bilbao (BIO): Guggenheim Museum Bilbao — Sculptural Shimmering Titanium Ribbons
+    function createBilbaoGuggenheim(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const water = LM.mat(0x0c4a6e, 0.25, 0.36), ti = LM.mat(0xe2e8f0, 0.16, 0.90);
+      const tiGold = LM.mat(0xf5e6c8, 0.18, 0.86), stone = LM.mat(0xe7d6b5, 0.72, 0.10);
+      LM.plaza(g, 0.25, 0x0c4a6e);
+      LM.box(g, 0.28, 0.055, 0.18, 0, 0.065, -0.02, stone);
+      // Frank Gehry's unmistakable billowing curved titanium "ship" shells!
+      const shells = [[-0.09, 0.14, 0.02, 0.068, 0.17, 0.25, ti], [0, 0.19, -0.02, 0.082, 0.24, -0.18, tiGold], [0.09, 0.15, 0.02, 0.066, 0.19, 0.32, ti], [0.02, 0.24, -0.04, 0.055, 0.26, -0.35, ti]];
+      for (const [x, y, z, r, h, rz, mat] of shells) {
+        const s = LM.cyl(g, r * 0.55, r, h, 14, x, y, z, mat);
+        s.scale.set(1.45, 1, 0.65); s.rotation.z = rz;
+      }
+      // Giant colorful floral "Puppy" sculpture guarding the museum plaza!
+      LM.box(g, 0.045, 0.055, 0.042, -0.13, 0.075, 0.09, LM.mat(0x22c55e, 0.82, 0.05));
+      LM.sph(g, 0.028, -0.13, 0.115, 0.10, LM.mat(0xf43f5e, 0.80, 0.05), 10);
+      routeGroup.add(g);
+    }
+
+    // 106. Tenerife / Canary Islands (TFS): Mount Teide Giant Atlantic Volcanic Cone
+    function createTenerifeTeide(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const sea = LM.mat(0x0369a1, 0.22, 0.38), lava = LM.mat(0x7c2d12, 0.88, 0.06);
+      const rock = LM.mat(0x9a3412, 0.86, 0.05), snow = LM.mat(0xf8fafc, 0.55, 0.05);
+      LM.plaza(g, 0.26, 0x0369a1);
+      // Wide Las Cañadas caldera ring + towering Mount Teide stratovolcano
+      LM.cyl(g, 0.17, 0.23, 0.08, 16, 0, 0.075, 0, lava);
+      LM.cyl(g, 0.025, 0.15, 0.38, 16, 0, 0.29, 0, rock);
+      LM.cyl(g, 0.025, 0.062, 0.13, 14, 0, 0.42, 0, snow);
+      // Roques de García volcanic rock finger in foreground
+      LM.cyl(g, 0.018, 0.010, 0.12, 7, 0.13, 0.13, 0.08, lava);
+      routeGroup.add(g);
+    }
+
+    // 107. French Riviera — Monaco / Nice / Marseille (NCE/MRS): Monte Carlo Casino Domes + Superyacht
+    function createRivieraMonaco(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const med = LM.mat(0x0284c7, 0.20, 0.40), cream = LM.mat(0xfef3c7, 0.65, 0.10);
+      const copper = LM.mat(0x2a7b6f, 0.42, 0.45), gold = LM.glow(2.1, 1.75, 0.55);
+      const white = LM.mat(0xf8fafc, 0.35, 0.25);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Monte Carlo Casino Belle Époque facade + twin copper-domed pavilions
+      LM.box(g, 0.26, 0.12, 0.13, 0, 0.10, -0.05, cream);
+      LM.box(g, 0.12, 0.08, 0.12, 0, 0.18, -0.05, cream);
+      for (const sx of [-0.105, 0.105]) {
+        LM.sph(g, 0.036, sx, 0.18, -0.05, copper, 12).scale.set(1, 1.3, 1);
+        LM.cone(g, 0.012, 0.05, 6, sx, 0.24, -0.05, gold, false);
+      }
+      LM.box(g, 0.10, 0.018, 0.01, 0, 0.12, 0.018, gold, false);
+      // Sleek white Riviera Superyacht cruising in Port Hercule!
+      LM.box(g, 0.19, 0.032, 0.055, 0.01, 0.052, 0.10, white);
+      LM.box(g, 0.11, 0.032, 0.044, -0.01, 0.082, 0.10, white);
+      LM.box(g, 0.05, 0.022, 0.035, -0.02, 0.108, 0.10, LM.mat(0x0f172a, 0.25, 0.6));
+      routeGroup.add(g);
+    }
+
+    // 108. Lyon (LYS): Basilique Notre-Dame de Fourvière (4 Towers) + Tour Part-Dieu ("Le Crayon")
+    function createLyonFourviere(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xf1f5f9, 0.65, 0.10), roof = LM.mat(0x475569, 0.68, 0.20);
+      const pencil = LM.winMat('#cbd5e1', ['#fef08a', '#bae6fd'], '#fde68a', 0.45);
+      LM.plaza(g, 0.25, 0x3f6212);
+      // Fourvière Basilica atop hill with signature 4 octagonal corner towers
+      LM.box(g, 0.16, 0.12, 0.16, -0.06, 0.11, 0, stone);
+      for (const sx of [-0.125, 0.005]) {
+        for (const sz of [-0.065, 0.065]) {
+          LM.cyl(g, 0.019, 0.022, 0.22, 8, sx, 0.16, sz, stone);
+          LM.cone(g, 0.024, 0.055, 8, sx, 0.295, sz, roof);
+        }
+      }
+      // Iconic Tour Part-Dieu ("The Pencil") cylindrical tower with pyramidal tip!
+      LM.cyl(g, 0.042, 0.044, 0.36, 16, 0.115, 0.22, -0.02, pencil);
+      LM.cone(g, 0.044, 0.11, 16, 0.115, 0.455, -0.02, LM.mat(0xe2e8f0, 0.35, 0.55));
+      LM.beacon(g, 0.115, 0.52, -0.02);
+      routeGroup.add(g);
+    }
+
+    // 109. Vilnius (VNO): Gediminas' Red-Brick Octagonal Castle Tower on Green Hill
+    function createVilniusGediminas(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const hill = LM.mat(0x3f6212, 0.88, 0.05), brick = LM.mat(0x9a3412, 0.80, 0.08);
+      const flagY = LM.glow(2.1, 1.8, 0.2), flagG = LM.mat(0x15803d, 0.7, 0.05), flagR = LM.mat(0xdc2626, 0.7, 0.05);
+      LM.plaza(g, 0.25, 0x3f6212);
+      // Steep green Castle Hill
+      LM.cyl(g, 0.11, 0.22, 0.19, 12, 0, 0.115, 0, hill);
+      // Iconic octagonal red-brick Gediminas Tower + curtain wall ruin
+      LM.cyl(g, 0.065, 0.072, 0.24, 8, -0.01, 0.30, 0, brick);
+      LM.cyl(g, 0.072, 0.070, 0.025, 8, -0.01, 0.42, 0, brick);
+      LM.box(g, 0.14, 0.065, 0.025, 0.06, 0.22, -0.04, brick);
+      // Lithuanian tricolor flag waving atop Gediminas Tower
+      LM.cyl(g, 0.004, 0.004, 0.13, 6, -0.01, 0.49, 0, LM.mat(0xe2e8f0, 0.4, 0.6));
+      LM.box(g, 0.052, 0.012, 0.006, 0.018, 0.545, 0, flagY, false);
+      LM.box(g, 0.052, 0.012, 0.006, 0.018, 0.532, 0, flagG);
+      LM.box(g, 0.052, 0.012, 0.006, 0.018, 0.519, 0, flagR);
+      routeGroup.add(g);
+    }
+
+    // 110. Riga (RIX): Riga Radio & TV Tripod Spire + House of the Blackheads Gable
+    function createRigaTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const steel = LM.mat(0xcbd5e1, 0.32, 0.72), cyan = LM.glow(0.45, 1.65, 2.2);
+      const brick = LM.mat(0xb4533c, 0.78, 0.08), white = LM.mat(0xf8fafc, 0.65, 0.08);
+      LM.plaza(g, 0.25, 0x0f3b57);
+      // Riga Radio & TV Tower — tallest tower in the EU! Three sweeping tripod legs converging into needle
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        const p0 = new THREE.Vector3(-0.04 + Math.cos(a) * 0.095, 0.04, Math.sin(a) * 0.095);
+        const p1 = new THREE.Vector3(-0.04, 0.27, 0);
+        const len = p0.distanceTo(p1);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, len, 6), steel);
+        leg.position.copy(p0.clone().add(p1).multiplyScalar(0.5));
+        leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p1.clone().sub(p0).normalize());
+        leg.castShadow = true; g.add(leg);
+      }
+      LM.cyl(g, 0.036, 0.028, 0.055, 6, -0.04, 0.28, 0, steel);
+      LM.tor(g, 0.038, 0.004, -0.04, 0.28, 0, cyan);
+      LM.cone(g, 0.016, 0.34, 8, -0.04, 0.47, 0, steel);
+      LM.beacon(g, -0.04, 0.65, 0);
+      // Ornate red-brick & white-trimmed House of the Blackheads stepped gable
+      LM.box(g, 0.09, 0.13, 0.08, 0.11, 0.105, 0.04, brick);
+      LM.cone(g, 0.065, 0.11, 4, 0.11, 0.22, 0.04, white).rotation.y = Math.PI / 4;
+      routeGroup.add(g);
+    }
+
+    // 111. Sofia (SOF): Alexander Nevsky Cathedral — Gleaming Golden & Green Byzantine Domes
+    function createSofiaCathedral(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xf5e9d3, 0.72, 0.08), gold = LM.mat(0xf59e0b, 0.18, 0.88);
+      const copper = LM.mat(0x2a7b6f, 0.42, 0.44);
+      LM.plaza(g, 0.25, 0x475569);
+      LM.box(g, 0.24, 0.13, 0.28, 0, 0.105, 0, stone);
+      // Central grand gold dome + tiered half-domes
+      LM.cyl(g, 0.068, 0.072, 0.075, 16, 0, 0.20, 0, stone);
+      LM.sph(g, 0.072, 0, 0.245, 0, gold, 18);
+      LM.cyl(g, 0.005, 0.005, 0.05, 6, 0, 0.34, 0, gold);
+      // Tall gold-domed bell tower on front + green copper apse domes
+      LM.box(g, 0.062, 0.28, 0.062, 0, 0.18, 0.125, stone);
+      LM.sph(g, 0.038, 0, 0.335, 0.125, gold, 12);
+      for (const [dx, dz] of [[-0.085, 0], [0.085, 0], [0, -0.10]]) {
+        LM.sph(g, 0.046, dx, 0.18, dz, copper, 12);
+      }
+      routeGroup.add(g);
+    }
+
+    // 112. Belgrade (BEG): Church of Saint Sava Marble Dome + Avala TV Tower
+    function createBelgradeStSava(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf8fafc, 0.56, 0.10), copper = LM.mat(0x2a7b6f, 0.42, 0.44);
+      const gold = LM.glow(2.2, 1.75, 0.42), concrete = LM.mat(0xcbd5e1, 0.65, 0.18);
+      LM.plaza(g, 0.25, 0x334155);
+      // Monumental white marble Greek-cross cathedral + huge green copper dome & golden cross
+      LM.box(g, 0.22, 0.14, 0.22, -0.04, 0.11, 0, marble);
+      LM.cyl(g, 0.078, 0.082, 0.065, 18, -0.04, 0.21, 0, marble);
+      LM.sph(g, 0.082, -0.04, 0.245, 0, copper, 18);
+      LM.cyl(g, 0.006, 0.006, 0.07, 6, -0.04, 0.355, 0, gold, false);
+      LM.box(g, 0.032, 0.007, 0.007, -0.04, 0.37, 0, gold, false);
+      for (const sx of [-0.12, 0.04]) for (const sz of [-0.08, 0.08]) {
+        LM.cyl(g, 0.020, 0.022, 0.08, 10, sx, 0.20, sz, marble);
+        LM.sph(g, 0.022, sx, 0.245, sz, copper, 10);
+      }
+      // Avala TV Tower tripod spire beside it
+      LM.cyl(g, 0.012, 0.026, 0.44, 3, 0.135, 0.26, -0.04, concrete);
+      LM.cyl(g, 0.034, 0.028, 0.045, 6, 0.135, 0.36, -0.04, concrete);
+      LM.beacon(g, 0.135, 0.49, -0.04);
+      routeGroup.add(g);
+    }
+
+    // 113. Dubrovnik (DBV): Medieval Terracotta Walled Old Town Fortress on Adriatic Headland
+    function createDubrovnikWalls(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0369a1, 0.20, 0.40), limestone = LM.mat(0xe7e5e4, 0.76, 0.08);
+      const terra = LM.mat(0xc2410c, 0.74, 0.08);
+      LM.plaza(g, 0.26, 0x0369a1);
+      // Thick medieval stone fortification walls & Minčeta round fortress tower!
+      LM.box(g, 0.28, 0.11, 0.22, 0, 0.095, 0, limestone);
+      LM.cyl(g, 0.052, 0.058, 0.20, 14, -0.11, 0.14, -0.08, limestone);
+      LM.cyl(g, 0.038, 0.042, 0.16, 12, 0.12, 0.12, 0.08, limestone);
+      // Iconic sea of bright terracotta pitched roofs packed inside the walls!
+      const roofs = [[-0.06, 0.03], [0.01, -0.04], [0.07, 0.02], [-0.02, 0.06], [0.04, -0.06], [-0.07, -0.04]];
+      for (const [rx, rz] of roofs) {
+        LM.box(g, 0.052, 0.055, 0.052, rx, 0.165, rz, limestone);
+        LM.cone(g, 0.042, 0.042, 4, rx, 0.21, rz, terra).rotation.y = Math.PI / 4;
+      }
+      routeGroup.add(g);
+    }
+
+    // 114. Zagreb / Ljubljana (ZAG/LJU): Zagreb Twin Neo-Gothic Cathedral Spires + Dragon Bridge
+    function createZagrebCathedral(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const cream = LM.mat(0xf5e9d3, 0.72, 0.08), green = LM.mat(0x16a34a, 0.45, 0.35);
+      const roof = LM.mat(0xb91c1c, 0.72, 0.08);
+      LM.plaza(g, 0.24, 0x334155);
+      // Zagreb Cathedral nave + soaring twin lace-stone spires
+      LM.box(g, 0.14, 0.16, 0.20, -0.02, 0.12, -0.03, cream);
+      LM.cone(g, 0.09, 0.08, 4, -0.02, 0.24, -0.03, roof).rotation.y = Math.PI / 4;
+      for (const sx of [-0.068, 0.028]) {
+        LM.box(g, 0.045, 0.28, 0.045, sx, 0.18, 0.06, cream);
+        LM.cone(g, 0.028, 0.24, 8, sx, 0.43, 0.06, cream);
+      }
+      // Mini Ljubljana emerald dragon statue beside the plaza!
+      LM.box(g, 0.055, 0.045, 0.045, 0.125, 0.065, 0.06, cream);
+      LM.box(g, 0.028, 0.045, 0.055, 0.125, 0.11, 0.06, green);
+      LM.box(g, 0.075, 0.012, 0.025, 0.125, 0.13, 0.06, green); // dragon wings!
+      routeGroup.add(g);
+    }
+
+    // 115. Thessaloniki (SKG): White Tower of Thessaloniki Waterfront Bastion
+    function createThessalonikiTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0369a1, 0.24, 0.38), buff = LM.mat(0xe7d6b5, 0.78, 0.08);
+      const warm = LM.glow(2.0, 1.55, 0.75);
+      LM.plaza(g, 0.25, 0x0369a1);
+      // Iconic cylindrical Ottoman sea-front White Tower with crenellated turret crown
+      LM.cyl(g, 0.105, 0.115, 0.30, 20, 0, 0.19, 0, buff);
+      LM.cyl(g, 0.112, 0.108, 0.032, 20, 0, 0.35, 0, buff);
+      LM.cyl(g, 0.052, 0.056, 0.10, 16, 0, 0.41, 0, buff);
+      LM.tor(g, 0.108, 0.005, 0, 0.34, 0, warm);
+      routeGroup.add(g);
+    }
+
+    // 116. Malta — Valletta (MLA): Golden Limestone Sea Bastion + Carmelite Basilica Dome
+    function createMaltaValletta(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0284c7, 0.20, 0.40), honey = LM.mat(0xe6c28b, 0.76, 0.08);
+      const dome = LM.mat(0xd9b37c, 0.68, 0.10), bell = LM.mat(0xf5e6c8, 0.72, 0.08);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Honey-gold Valletta harbor bastions
+      LM.box(g, 0.32, 0.11, 0.20, 0, 0.095, 0, honey);
+      // Unmistakable tall oval dome of Our Lady of Mount Carmel Basilica + St. Paul's spire!
+      LM.cyl(g, 0.068, 0.072, 0.11, 16, -0.05, 0.20, 0, bell);
+      LM.sph(g, 0.070, -0.05, 0.26, 0, dome, 18).scale.set(1, 1.38, 1);
+      LM.cyl(g, 0.015, 0.018, 0.05, 10, -0.05, 0.36, 0, bell);
+      // St. Paul's Anglican Pro-Cathedral slender spire right next to the dome!
+      LM.box(g, 0.044, 0.18, 0.044, 0.09, 0.23, 0.02, bell);
+      LM.cone(g, 0.028, 0.16, 8, 0.09, 0.39, 0.02, bell);
+      routeGroup.add(g);
+    }
+
+    // 117. Caucasus — Yerevan / Tbilisi (EVN/TBS): Twin Snow-Capped Mount Ararat Peaks + Peace Bridge
+    function createCaucasusArarat(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const rock = LM.mat(0x64748b, 0.88, 0.06), snow = LM.mat(0xf8fafc, 0.52, 0.05);
+      const glass = LM.glow(0.65, 1.75, 2.2), tuff = LM.mat(0xc97b63, 0.78, 0.08);
+      LM.plaza(g, 0.26, 0x475569);
+      // Iconic twin cones: Greater Ararat + Little Ararat!
+      LM.cone(g, 0.16, 0.48, 12, -0.06, 0.27, -0.04, rock);
+      LM.cone(g, 0.088, 0.25, 12, -0.06, 0.39, -0.04, snow);
+      LM.cone(g, 0.12, 0.34, 12, 0.11, 0.20, -0.03, rock);
+      LM.cone(g, 0.052, 0.14, 12, 0.11, 0.30, -0.03, snow);
+      // Pink tuff Armenian monastery / glowing wave of Tbilisi Bridge of Peace in front
+      LM.box(g, 0.08, 0.065, 0.06, -0.08, 0.075, 0.11, tuff);
+      LM.cone(g, 0.028, 0.075, 8, -0.08, 0.145, 0.11, tuff);
+      const bridge = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 18, Math.PI), glass);
+      bridge.position.set(0.06, 0.055, 0.11); g.add(bridge);
+      routeGroup.add(g);
+    }
+
+    // 118. Mallorca (PMI): La Seu Golden Gothic Cathedral + Circular Bellver Castle
+    function createMallorcaCathedral(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0284c7, 0.22, 0.38), sand = LM.mat(0xe6c28b, 0.74, 0.08);
+      const rose = LM.glow(2.2, 1.4, 0.45);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // La Seu waterfront Gothic cathedral with dramatic flying buttress pinnacles & rose window!
+      LM.box(g, 0.24, 0.16, 0.14, -0.04, 0.12, -0.02, sand);
+      for (let i = -2; i <= 2; i++) {
+        LM.cone(g, 0.015, 0.12, 4, -0.04 + i * 0.048, 0.25, 0.05, sand);
+      }
+      LM.cyl(g, 0.032, 0.032, 0.008, 16, -0.04, 0.14, 0.055, rose, false).rotation.x = Math.PI / 2;
+      // Iconic circular Castell de Bellver fortress beside it
+      LM.cyl(g, 0.072, 0.076, 0.10, 18, 0.12, 0.09, 0.06, sand);
+      LM.cyl(g, 0.022, 0.024, 0.16, 12, 0.15, 0.12, 0.10, sand);
+      routeGroup.add(g);
+    }
+
+    // 119. Dallas–Fort Worth (DFW): Reunion Tower Glowing Geodesic LED Ball
+    function createDallasReunion(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const concrete = LM.mat(0xd6d3d1, 0.65, 0.18), glass = LM.winMat('#1e3a5f', ['#93c5fd', '#e0f2fe', '#fef08a'], '#38bdf8', 0.62);
+      const ball = LM.glow(0.65, 1.85, 2.3), gold = LM.glow(2.2, 1.65, 0.45);
+      LM.plaza(g, 0.24, 0x334155);
+      // Iconic Reunion Tower 4-shaft bundle + glowing geodesic sphere!
+      LM.cyl(g, 0.024, 0.026, 0.42, 12, -0.04, 0.25, 0.02, concrete);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        LM.cyl(g, 0.011, 0.011, 0.41, 8, -0.04 + Math.cos(a) * 0.032, 0.245, 0.02 + Math.sin(a) * 0.032, concrete);
+      }
+      LM.sph(g, 0.088, -0.04, 0.49, 0.02, LM.mat(0xf8fafc, 0.2, 0.8, { wireframe: true }), 10);
+      LM.sph(g, 0.066, -0.04, 0.49, 0.02, ball, 14);
+      // Bank of America Plaza neon-green outlined Dallas skyscraper beside it
+      LM.box(g, 0.085, 0.42, 0.085, 0.11, 0.25, -0.04, glass);
+      LM.box(g, 0.090, 0.014, 0.090, 0.11, 0.46, -0.04, LM.glow(0.35, 2.3, 0.75), false);
+      LM.beacon(g, -0.04, 0.59, 0.02);
+      routeGroup.add(g);
+    }
+
+    // 120. Portland / Oregon (PDX): Snow-Capped Mount Hood + St. Johns Gothic Bridge
+    function createPortlandMountHood(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const pine = LM.mat(0x14532d, 0.88, 0.04), rock = LM.mat(0x475569, 0.88, 0.06);
+      const snow = LM.mat(0xf8fafc, 0.52, 0.05), bridgeGreen = LM.mat(0x2a7b6f, 0.45, 0.45);
+      LM.plaza(g, 0.26, 0x14532d);
+      // Iconic Mount Hood glacier cone rising behind Portland
+      LM.cone(g, 0.18, 0.46, 12, -0.02, 0.26, -0.05, rock);
+      LM.cone(g, 0.125, 0.30, 12, -0.02, 0.34, -0.05, snow);
+      // St. Johns Gothic-arched green steel suspension bridge in foreground
+      LM.box(g, 0.34, 0.016, 0.04, 0, 0.10, 0.09, bridgeGreen);
+      for (const px of [-0.09, 0.09]) {
+        LM.box(g, 0.026, 0.22, 0.036, px, 0.15, 0.09, bridgeGreen);
+        LM.cone(g, 0.022, 0.06, 4, px, 0.29, 0.09, bridgeGreen).rotation.y = Math.PI / 4;
+      }
+      routeGroup.add(g);
+    }
+
+    // 121. New Orleans (MSY): St. Louis Cathedral Triple Spires + French Quarter Balcony
+    function createNewOrleansCathedral(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const white = LM.mat(0xf8fafc, 0.62, 0.08), slate = LM.mat(0x334155, 0.72, 0.18);
+      const gold = LM.glow(2.2, 1.75, 0.45), purple = LM.glow(1.75, 0.45, 2.3);
+      LM.plaza(g, 0.24, 0x334155);
+      // St. Louis Cathedral Jackson Square facade + three unmistakable dark conical spires!
+      LM.box(g, 0.22, 0.16, 0.14, 0, 0.12, -0.02, white);
+      LM.box(g, 0.068, 0.14, 0.068, 0, 0.25, 0.02, white);
+      LM.cone(g, 0.042, 0.18, 8, 0, 0.40, 0.02, slate);
+      for (const sx of [-0.085, 0.085]) {
+        LM.box(g, 0.048, 0.10, 0.048, sx, 0.23, 0.02, white);
+        LM.cone(g, 0.032, 0.14, 8, sx, 0.34, 0.02, slate);
+      }
+      // Mardi Gras neon gold & purple Bourbon Street glow trim!
+      LM.box(g, 0.23, 0.012, 0.015, 0, 0.13, 0.055, purple, false);
+      LM.box(g, 0.23, 0.012, 0.015, 0, 0.19, 0.055, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 122. Nashville (BNA): AT&T "Batman Building" Twin-Eared Spire Skyscraper
+    function createNashvilleBatman(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const glass = LM.winMat('#1e293b', ['#bae6fd', '#fde68a', '#f8fafc'], '#60a5fa', 0.65, 0.26, 0.55);
+      const silver = LM.mat(0xe2e8f0, 0.28, 0.72), glow = LM.glow(2.2, 1.45, 0.45);
+      LM.plaza(g, 0.24, 0x334155);
+      // Main stepped Art Deco shaft of the AT&T Building
+      LM.box(g, 0.15, 0.36, 0.11, 0, 0.22, 0, glass);
+      LM.box(g, 0.13, 0.09, 0.095, 0, 0.44, 0, silver);
+      // Signature tall twin "Batman Ears" soaring from both sides of the roof!
+      for (const sx of [-0.055, 0.055]) {
+        LM.cyl(g, 0.008, 0.028, 0.22, 4, sx, 0.56, 0, silver).rotation.y = Math.PI / 4;
+        LM.beacon(g, sx, 0.675, 0, 0.010);
+      }
+      // Illuminated Broadway honky-tonk strip at base
+      LM.box(g, 0.22, 0.03, 0.04, 0, 0.055, 0.11, glow, false);
+      routeGroup.add(g);
+    }
+
+    // 123. Salt Lake City (SLC): Salt Lake Temple 6 Granite Spires + Wasatch Peaks
+    function createSaltLakeTemple(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const granite = LM.mat(0xe7e5e4, 0.68, 0.12), gold = LM.glow(2.2, 1.8, 0.45);
+      const rock = LM.mat(0x64748b, 0.88, 0.06), snow = LM.mat(0xf8fafc, 0.55, 0.05);
+      LM.plaza(g, 0.25, 0x3f6212);
+      // 6-spired Neo-Gothic Salt Lake Temple!
+      LM.box(g, 0.16, 0.16, 0.22, -0.03, 0.12, 0.02, granite);
+      for (const sz of [-0.08, 0.12]) {
+        LM.box(g, 0.042, 0.26, 0.042, -0.03, 0.25, sz, granite);
+        LM.cone(g, 0.026, 0.12, 6, -0.03, 0.44, sz, granite);
+        for (const sx of [-0.095, 0.035]) {
+          LM.box(g, 0.032, 0.22, 0.032, sx, 0.23, sz, granite);
+          LM.cone(g, 0.020, 0.09, 6, sx, 0.38, sz, granite);
+        }
+      }
+      LM.sph(g, 0.014, -0.03, 0.51, 0.12, gold, 8);
+      // Snow-capped Wasatch Mountain backdrop
+      LM.cone(g, 0.11, 0.34, 5, 0.12, 0.20, -0.08, rock);
+      LM.cone(g, 0.055, 0.16, 5, 0.12, 0.30, -0.08, snow);
+      routeGroup.add(g);
+    }
+
+    // 124. San Juan, Puerto Rico (SJU): Castillo San Felipe del Morro Fortress & Garita Sentry Box
+    function createSanJuanElMorro(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0284c7, 0.20, 0.38), wall = LM.mat(0xd6b88d, 0.80, 0.06);
+      const grass = LM.mat(0x4d7c0f, 0.85, 0.05), dome = LM.mat(0xc2593f, 0.72, 0.08);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Terraced Spanish citadel overlooking the Atlantic
+      LM.box(g, 0.28, 0.11, 0.22, 0, 0.095, 0, wall);
+      LM.box(g, 0.18, 0.08, 0.16, -0.03, 0.185, -0.02, wall);
+      LM.box(g, 0.20, 0.018, 0.10, 0.02, 0.155, 0.06, grass, false);
+      // Iconic cylindrical domed Garita watchtower perched on the sea corner!
+      LM.cyl(g, 0.028, 0.028, 0.13, 12, 0.135, 0.165, 0.105, wall);
+      LM.sph(g, 0.030, 0.135, 0.235, 0.105, dome, 12);
+      // Lighthouse cupola atop El Morro
+      LM.cyl(g, 0.032, 0.036, 0.09, 12, -0.04, 0.27, -0.02, wall);
+      LM.sph(g, 0.032, -0.04, 0.32, -0.02, LM.glow(2.2, 2.0, 1.3), 12);
+      routeGroup.add(g);
+    }
+
+    // 125. Nassau, Bahamas (NAS): Atlantis Royal Pink Twin Towers & Skybridge Arch
+    function createNassauAtlantis(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const aqua = LM.mat(0x06b6d4, 0.20, 0.35), coral = LM.mat(0xf4a488, 0.65, 0.10);
+      const roof = LM.mat(0x0d9488, 0.42, 0.35), gold = LM.glow(2.2, 1.7, 0.5);
+      LM.plaza(g, 0.25, 0x06b6d4);
+      // Iconic salmon-pink Royal Towers linked by the dramatic Bridge Suite!
+      for (const sx of [-0.10, 0.10]) {
+        LM.box(g, 0.095, 0.32, 0.095, sx, 0.20, 0, coral);
+        LM.cone(g, 0.062, 0.09, 4, sx, 0.405, 0, roof).rotation.y = Math.PI / 4;
+        LM.sph(g, 0.018, sx, 0.46, 0, gold, 8);
+      }
+      // Famous elevated royal skybridge arch connecting the two towers!
+      LM.box(g, 0.14, 0.075, 0.072, 0, 0.295, 0, coral);
+      LM.box(g, 0.11, 0.016, 0.076, 0, 0.295, 0, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 126. Costa Rica (SJO): Arenal Emerald Jungle Volcano with Glowing Lava Crater
+    function createCostaRicaArenal(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const jungle = LM.mat(0x15803d, 0.86, 0.04), ash = LM.mat(0x475569, 0.90, 0.06);
+      const lava = LM.glow(2.5, 0.65, 0.15);
+      LM.plaza(g, 0.26, 0x166534);
+      // Steep emerald rainforest lower cone + dark volcanic upper cone + glowing vent!
+      LM.cyl(g, 0.11, 0.22, 0.18, 16, 0, 0.12, 0, jungle);
+      LM.cyl(g, 0.032, 0.115, 0.28, 16, 0, 0.34, 0, ash);
+      LM.cyl(g, 0.030, 0.024, 0.025, 12, 0, 0.485, 0, lava, false);
+      // Glowing magma streak down the flank
+      LM.box(g, 0.014, 0.18, 0.014, 0.035, 0.39, 0.052, lava, false).rotation.z = -0.32;
+      routeGroup.add(g);
+    }
+
+    // 127. Pittsburgh (PIT): PPG Place Gothic Glass Castle + Yellow Suspension Bridge
+    function createPittsburghPPG(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0c4a6e, 0.28, 0.35), glass = LM.winMat('#0f172a', ['#e0f2fe', '#bae6fd', '#f8fafc'], '#93c5fd', 0.72, 0.15, 0.82);
+      const yellow = LM.mat(0xeab308, 0.45, 0.40);
+      LM.plaza(g, 0.25, 0x0c4a6e);
+      // PPG Place — shimmering silver-mirror Gothic glass fortress with crystalline spires!
+      LM.box(g, 0.12, 0.36, 0.12, -0.05, 0.22, -0.04, glass);
+      for (const sx of [-0.095, -0.005]) for (const sz of [-0.085, 0.005]) {
+        LM.cone(g, 0.022, 0.14, 4, sx, 0.46, sz, glass).rotation.y = Math.PI / 4;
+      }
+      LM.cone(g, 0.026, 0.18, 4, -0.05, 0.48, -0.04, glass).rotation.y = Math.PI / 4;
+      // Pittsburgh's iconic Aztec-Gold Three Sisters suspension bridge!
+      LM.box(g, 0.34, 0.016, 0.04, 0.03, 0.10, 0.10, yellow);
+      for (const px of [-0.05, 0.11]) {
+        LM.box(g, 0.022, 0.18, 0.035, px, 0.13, 0.10, yellow);
+      }
+      const cable = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.006, 6, 16, Math.PI), yellow);
+      cable.position.set(0.03, 0.19, 0.10); cable.rotation.z = Math.PI; g.add(cable);
+      routeGroup.add(g);
+    }
+
+    // 128. Cincinnati (CVG): Roebling Suspension Bridge + Carew Tower Art Deco Crown
+    function createCincinnatiRoebling(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0c4a6e, 0.28, 0.35), stone = LM.mat(0xd6b88d, 0.78, 0.10);
+      const blue = LM.mat(0x2563eb, 0.42, 0.48), tower = LM.winMat('#78350f', ['#fde68a', '#fed7aa'], '#f59e0b', 0.58);
+      LM.plaza(g, 0.25, 0x0c4a6e);
+      // Iconic blue-steel & twin-stone-tower Roebling Suspension Bridge (prototype for Brooklyn Bridge!)
+      LM.box(g, 0.38, 0.016, 0.045, -0.02, 0.10, 0.06, blue);
+      for (const px of [-0.11, 0.07]) {
+        LM.box(g, 0.038, 0.24, 0.052, px, 0.16, 0.06, stone);
+        LM.cone(g, 0.028, 0.055, 4, px, 0.305, 0.06, stone).rotation.y = Math.PI / 4;
+      }
+      // Art Deco Carew Tower behind the riverfront
+      LM.box(g, 0.085, 0.36, 0.075, 0.11, 0.22, -0.06, tower);
+      LM.box(g, 0.058, 0.09, 0.052, 0.11, 0.44, -0.06, stone);
+      routeGroup.add(g);
+    }
+
+    // 129. Iguazu Falls (IGU): Garganta del Diablo Horseshoe Waterfall + Rainforest Cliff
+    function createIguazuFalls(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const river = LM.mat(0x0284c7, 0.20, 0.35), rock = LM.mat(0x7c2d12, 0.88, 0.05);
+      const jungle = LM.mat(0x15803d, 0.86, 0.04), foam = LM.glow(1.35, 1.85, 2.2);
+      const mist = LM.mat(0xe0f2fe, 0.9, 0, { transparent: true, opacity: 0.48 });
+      LM.plaza(g, 0.26, 0x0284c7);
+      // Basalt jungle plateau + roaring cascading curtains of white water!
+      LM.cyl(g, 0.165, 0.175, 0.16, 12, 0, 0.11, -0.05, rock);
+      LM.cyl(g, 0.168, 0.168, 0.026, 12, 0, 0.195, -0.05, jungle);
+      LM.box(g, 0.14, 0.014, 0.12, 0, 0.208, 0.02, foam, false);
+      for (let i = -3; i <= 3; i++) {
+        const ang = i * 0.28;
+        const x = Math.sin(ang) * 0.182;
+        const z = -0.05 + Math.cos(ang) * 0.182;
+        LM.box(g, 0.044, 0.175, 0.022, x, 0.125, z, foam, false).rotation.y = ang;
+      }
+      // Rising tropical waterfall mist clouds + subtle rainbow arc!
+      LM.sph(g, 0.06, -0.04, 0.10, 0.11, mist, 10);
+      LM.sph(g, 0.055, 0.05, 0.11, 0.10, mist, 10);
+      const rb = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.006, 6, 18, Math.PI), LM.glow(2.2, 1.3, 0.4));
+      rb.position.set(0, 0.12, 0.12); g.add(rb);
+      routeGroup.add(g);
+    }
+
+    // 130. Lima (LIM): Huaca Pucllana Adobe Step Pyramid + Plaza Mayor Yellow Colonial Cathedral
+    function createLimaCathedral(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const adobe = LM.mat(0xc29b6e, 0.88, 0.05), yellow = LM.mat(0xf59e0b, 0.68, 0.10);
+      const white = LM.mat(0xf8fafc, 0.65, 0.08);
+      LM.plaza(g, 0.25, 0x475569);
+      // Pre-Incan adobe clay terraced Huaca Pucllana pyramid
+      for (let i = 0; i < 4; i++) {
+        LM.box(g, 0.20 - i * 0.036, 0.038, 0.14 - i * 0.024, -0.06, 0.058 + i * 0.036, -0.05, adobe);
+      }
+      // Yellow-ochre twin-towered Lima Cathedral
+      LM.box(g, 0.15, 0.13, 0.11, 0.08, 0.105, 0.05, yellow);
+      for (const sx of [0.025, 0.135]) {
+        LM.box(g, 0.038, 0.15, 0.038, sx, 0.21, 0.08, yellow);
+        LM.cone(g, 0.024, 0.08, 8, sx, 0.32, 0.08, white);
+      }
+      routeGroup.add(g);
+    }
+
+    // 131. Quito, Ecuador (UIO): Mitad del Mundo Equator Monument + Cotopaxi Snow Volcano
+    function createQuitoEquator(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const stone = LM.mat(0xd6d3d1, 0.72, 0.12), brass = LM.mat(0xd97706, 0.25, 0.82);
+      const eqLine = LM.glow(2.3, 1.85, 0.25), rock = LM.mat(0x57534e, 0.88, 0.06);
+      const snow = LM.mat(0xf8fafc, 0.52, 0.05);
+      LM.plaza(g, 0.25, 0x475569);
+      // Bright yellow 0°0'0" Equator line running across the plaza!
+      LM.box(g, 0.44, 0.012, 0.018, 0, 0.045, 0.06, eqLine, false);
+      // Mitad del Mundo trapezoidal obelisk crowned by brass globe!
+      LM.cyl(g, 0.032, 0.058, 0.26, 4, -0.05, 0.17, 0.06, stone).rotation.y = Math.PI / 4;
+      LM.sph(g, 0.042, -0.05, 0.34, 0.06, brass, 14);
+      LM.tor(g, 0.052, 0.005, -0.05, 0.34, 0.06, eqLine, Math.PI / 2.6, 18);
+      // Cotopaxi perfect snow-capped Andean volcano behind Quito!
+      LM.cone(g, 0.15, 0.42, 14, 0.09, 0.24, -0.06, rock);
+      LM.cone(g, 0.095, 0.25, 14, 0.09, 0.33, -0.06, snow);
+      routeGroup.add(g);
+    }
+
+    // 132. Montevideo (MVD): Palacio Salvo Eclectic Domed Art Deco Palace
+    function createMontevideoSalvo(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const cream = LM.mat(0xf2e1c1, 0.68, 0.10), copper = LM.mat(0x2a7b6f, 0.42, 0.45);
+      const warm = LM.glow(2.1, 1.75, 0.75);
+      LM.plaza(g, 0.24, 0x334155);
+      // Layered wedding-cake Art Deco palace + iconic corner lighthouse tower!
+      LM.box(g, 0.22, 0.16, 0.18, 0, 0.12, 0, cream);
+      LM.box(g, 0.14, 0.12, 0.14, -0.02, 0.25, 0, cream);
+      LM.cyl(g, 0.052, 0.058, 0.16, 14, -0.02, 0.38, 0, cream);
+      LM.sph(g, 0.054, -0.02, 0.47, 0, copper, 14).scale.set(1, 1.35, 1);
+      LM.cyl(g, 0.012, 0.014, 0.06, 8, -0.02, 0.56, 0, warm, false);
+      for (const [tx, tz] of [[0.09, 0.07], [0.09, -0.07], [-0.09, 0.07]]) {
+        LM.sph(g, 0.024, tx, 0.21, tz, copper, 10);
+      }
+      routeGroup.add(g);
+    }
+
+    // 133. Jeddah / Mecca (JED): Abraj Al-Bait Royal Clock Tower (World's Largest Clock Face!)
+    function createMeccaClockTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const stone = LM.mat(0xe7e0d0, 0.65, 0.14), emerald = LM.glow(0.35, 2.1, 0.95);
+      const gold = LM.mat(0xf59e0b, 0.18, 0.88), clock = LM.glow(2.0, 2.2, 1.8);
+      LM.plaza(g, 0.25, 0xe7d6b5);
+      // Massive podium + twin flank towers + soaring central Royal Clock Tower!
+      LM.box(g, 0.28, 0.14, 0.18, 0, 0.11, 0, stone);
+      LM.box(g, 0.11, 0.36, 0.11, 0, 0.32, 0, stone);
+      // Giant luminous 4-sided emerald-trimmed clock faces!
+      for (const [cx, cz, ry] of [[0, 0.058, 0], [0, -0.058, 0], [0.058, 0, Math.PI / 2], [-0.058, 0, Math.PI / 2]]) {
+        const face = LM.cyl(g, 0.042, 0.042, 0.008, 16, cx, 0.42, cz, clock, false);
+        face.rotation.x = Math.PI / 2; face.rotation.z = ry;
+      }
+      LM.box(g, 0.116, 0.014, 0.116, 0, 0.48, 0, emerald, false);
+      // Golden spire & crescent finial
+      LM.cone(g, 0.045, 0.17, 8, 0, 0.585, 0, gold);
+      LM.tor(g, 0.024, 0.005, 0, 0.695, 0, gold, 0, 14);
+      routeGroup.add(g);
+    }
+
+    // 134. Kuwait City (KWI): Kuwait Towers — Three Futuristic Blue-and-White Spheres on Needles
+    function createKuwaitTowers(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0284c7, 0.24, 0.36), concrete = LM.mat(0xf1f5f9, 0.52, 0.16);
+      const mosaic = LM.mat(0x0284c7, 0.24, 0.68), cyan = LM.glow(0.4, 1.8, 2.3);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Main tower with TWO iconic glistening turquoise-mosaic spheres!
+      LM.cyl(g, 0.010, 0.024, 0.58, 12, -0.05, 0.33, 0, concrete);
+      LM.sph(g, 0.068, -0.05, 0.24, 0, mosaic, 18);
+      LM.tor(g, 0.069, 0.005, -0.05, 0.24, 0, cyan);
+      LM.sph(g, 0.048, -0.05, 0.40, 0, mosaic, 16);
+      LM.tor(g, 0.049, 0.004, -0.05, 0.40, 0, cyan);
+      // Second tower with single sphere
+      LM.cyl(g, 0.008, 0.020, 0.44, 12, 0.08, 0.26, 0.05, concrete);
+      LM.sph(g, 0.054, 0.08, 0.24, 0.05, mosaic, 16);
+      // Third slender spotlight needle tower
+      LM.cone(g, 0.015, 0.36, 10, 0.09, 0.22, -0.08, concrete);
+      LM.beacon(g, -0.05, 0.63, 0);
+      routeGroup.add(g);
+    }
+
+    // 135. Tehran (IKA): Azadi Tower White Marble Inverted-Y Arch + Milad Tower
+    function createTehranAzadi(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf8fafc, 0.55, 0.10), turq = LM.glow(0.35, 1.85, 2.1);
+      const steel = LM.mat(0xcbd5e1, 0.35, 0.65);
+      LM.plaza(g, 0.25, 0x334155);
+      // Iconic Shahyad / Azadi Tower flaring four-legged marble triumphal arch!
+      for (const sx of [-1, 1]) {
+        const leg = LM.box(g, 0.045, 0.24, 0.09, sx * 0.095 - 0.04, 0.145, 0.04, marble);
+        leg.rotation.z = sx * 0.30;
+      }
+      LM.box(g, 0.16, 0.055, 0.092, -0.04, 0.25, 0.04, marble);
+      LM.box(g, 0.08, 0.12, 0.065, -0.04, 0.33, 0.04, marble);
+      LM.tor(g, 0.042, 0.005, -0.04, 0.19, 0.088, turq, 0, 14);
+      // Milad Tower 6th-tallest telecom tower in the world behind it
+      LM.cyl(g, 0.018, 0.026, 0.44, 8, 0.11, 0.26, -0.06, steel);
+      LM.cyl(g, 0.048, 0.036, 0.09, 12, 0.11, 0.39, -0.06, steel);
+      LM.cyl(g, 0.005, 0.010, 0.16, 8, 0.11, 0.55, -0.06, steel);
+      LM.beacon(g, 0.11, 0.635, -0.06);
+      routeGroup.add(g);
+    }
+
+    // 136. Muscat, Oman (MCT): Sultan Qaboos Grand Mosque Golden Lattice Dome & 5 Minarets
+    function createMuscatMosque(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sand = LM.mat(0xf5e9d3, 0.72, 0.08), gold = LM.mat(0xf59e0b, 0.20, 0.85);
+      const warm = LM.glow(2.2, 1.7, 0.5);
+      LM.plaza(g, 0.25, 0xe7d6b5);
+      LM.box(g, 0.24, 0.11, 0.24, 0, 0.095, 0, sand);
+      LM.cyl(g, 0.068, 0.072, 0.065, 16, 0, 0.18, 0, sand);
+      LM.sph(g, 0.072, 0, 0.22, 0, gold, 18).scale.set(1, 1.15, 1);
+      // 4 corner minarets + 1 soaring main golden-capped minaret!
+      for (const [mx, mz, mh] of [[-0.125, -0.125, 0.26], [0.125, -0.125, 0.26], [-0.125, 0.125, 0.26], [0.125, 0.125, 0.26], [0, -0.155, 0.42]]) {
+        LM.cyl(g, 0.014, 0.018, mh, 10, mx, 0.04 + mh * 0.5, mz, sand);
+        LM.sph(g, 0.018, mx, 0.04 + mh + 0.012, mz, gold, 10);
+      }
+      LM.tor(g, 0.073, 0.004, 0, 0.21, 0, warm);
+      routeGroup.add(g);
+    }
+
+    // 137. Baghdad (BGW): Al-Shaheed Monument — Iconic Split Turquoise Teardrop Dome
+    function createBaghdadMonument(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const pool = LM.mat(0x0284c7, 0.22, 0.36), turq = LM.mat(0x06b6d4, 0.24, 0.55);
+      const gold = LM.glow(2.2, 1.65, 0.45), platform = LM.mat(0xe7d6b5, 0.72, 0.10);
+      LM.plaza(g, 0.25, 0x0284c7);
+      LM.cyl(g, 0.19, 0.20, 0.04, 20, 0, 0.06, 0, platform);
+      // Two dramatic split-apart turquoise glazed teardrop dome halves!
+      for (const [sx, sz, rz] of [[-0.068, -0.02, 0.12], [0.068, 0.02, -0.12]]) {
+        const half = LM.sph(g, 0.105, sx, 0.18, sz, turq, 18);
+        half.scale.set(0.58, 1.65, 0.95);
+        half.rotation.z = rz;
+      }
+      // Golden eternal flame / flag spire rising cleanly through the center split!
+      LM.cone(g, 0.022, 0.18, 10, 0, 0.16, 0, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 138. Tunis / Carthage (TUN): Sidi Bou Said Blue-and-White Village + Roman Amphitheatre Columns
+    function createTunisCarthage(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const med = LM.mat(0x0284c7, 0.22, 0.38), white = LM.mat(0xf8fafc, 0.55, 0.06);
+      const blue = LM.mat(0x1d4ed8, 0.38, 0.25), stone = LM.mat(0xd9b37c, 0.80, 0.08);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Sidi Bou Said dazzling white terraced cubes with royal-blue doors & domes
+      LM.box(g, 0.18, 0.11, 0.14, -0.05, 0.095, -0.02, white);
+      LM.box(g, 0.11, 0.08, 0.10, -0.07, 0.18, -0.04, white);
+      LM.sph(g, 0.042, -0.07, 0.23, -0.04, white, 12);
+      LM.box(g, 0.032, 0.052, 0.012, -0.05, 0.08, 0.052, blue);
+      LM.box(g, 0.026, 0.042, 0.012, 0.005, 0.08, 0.052, blue);
+      // Ancient Carthage Roman colonnade ruins standing right beside the sea!
+      for (let i = 0; i < 4; i++) {
+        LM.cyl(g, 0.014, 0.016, 0.16 - (i === 3 ? 0.05 : 0), 10, 0.075 + i * 0.035, 0.12 - (i === 3 ? 0.025 : 0), 0.05, stone);
+      }
+      LM.box(g, 0.11, 0.022, 0.034, 0.11, 0.205, 0.05, stone);
+      routeGroup.add(g);
+    }
+
+    // 139. Madagascar (TNR): Avenue of the Baobabs — Iconic Giant Ancient Bottle Trees!
+    function createMadagascarBaobabs(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const redEarth = LM.mat(0xb4532a, 0.88, 0.04), bark = LM.mat(0x8c5a3c, 0.85, 0.05);
+      const canopy = LM.mat(0x3f6212, 0.84, 0.04);
+      LM.plaza(g, 0.26, 0xb4532a);
+      // Signature dirt avenue flanked by colossal thick-trunked Grandidier's Baobab trees!
+      const trees = [[-0.11, 0.07, 0.036, 0.34], [0.11, 0.06, 0.038, 0.38], [-0.10, -0.07, 0.034, 0.32], [0.10, -0.08, 0.032, 0.30], [0, -0.14, 0.030, 0.28]];
+      for (const [tx, tz, tr, th] of trees) {
+        LM.cyl(g, tr * 0.72, tr, th, 10, tx, 0.04 + th * 0.5, tz, bark);
+        // Flat tangled root-like crown branches!
+        for (let b = 0; b < 4; b++) {
+          const a = (b / 4) * Math.PI * 2 + tx * 5;
+          const br = LM.cyl(g, 0.005, 0.011, 0.075, 5, tx + Math.cos(a) * 0.028, 0.04 + th + 0.025, tz + Math.sin(a) * 0.028, bark);
+          br.rotation.z = -Math.cos(a) * 0.65; br.rotation.x = Math.sin(a) * 0.65;
+        }
+        LM.cyl(g, tr * 2.2, tr * 1.4, 0.028, 10, tx, 0.04 + th + 0.045, tz, canopy);
+      }
+      routeGroup.add(g);
+    }
+
+    // 140. Mauritius (MRU): Le Morne Brabant Basalt Peninsula + Turquoise Underwater Waterfall Illusion
+    function createMauritiusLeMorne(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const lagoon = LM.mat(0x06b6d4, 0.18, 0.35), deep = LM.mat(0x0c4a6e, 0.22, 0.38);
+      const basalt = LM.mat(0x475569, 0.88, 0.06), green = LM.mat(0x166534, 0.86, 0.05);
+      const sand = LM.mat(0xfef3c7, 0.85, 0.04);
+      LM.plaza(g, 0.26, 0x06b6d4);
+      // Swirling deep-blue underwater waterfall drop-off + sandy beach spit
+      LM.cyl(g, 0.12, 0.13, 0.014, 16, 0.09, 0.044, 0.08, deep, false);
+      LM.cyl(g, 0.15, 0.16, 0.018, 16, -0.04, 0.045, -0.02, sand, false);
+      // Dramatic steep-walled flat-topped Le Morne Brabant basalt monolith!
+      LM.cyl(g, 0.095, 0.135, 0.30, 8, -0.05, 0.19, -0.03, basalt).scale.set(1.25, 1, 0.8);
+      LM.cyl(g, 0.096, 0.096, 0.025, 8, -0.05, 0.345, -0.03, green).scale.set(1.25, 1, 0.8);
+      routeGroup.add(g);
+    }
+
+    // 141. Hiroshima / Fukuoka (HIJ/FUK): Itsukushima Floating Vermilion Grand Torii Gate in the Sea
+    function createMiyajimaTorii(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0369a1, 0.22, 0.38), verm = LM.mat(0xdc2626, 0.48, 0.12);
+      const black = LM.mat(0x0f172a, 0.65, 0.18), gold = LM.glow(2.1, 1.7, 0.45);
+      LM.plaza(g, 0.26, 0x0369a1);
+      // Iconic massive Ryōbu-style four-buttressed floating O-Torii Gate of Miyajima!
+      for (const sx of [-0.115, 0.115]) {
+        LM.cyl(g, 0.022, 0.028, 0.34, 12, sx, 0.20, 0, verm);
+        for (const sz of [-0.048, 0.048]) {
+          LM.cyl(g, 0.012, 0.015, 0.18, 8, sx, 0.12, sz, verm);
+          LM.box(g, 0.022, 0.018, 0.11, sx, 0.205, 0, verm);
+        }
+      }
+      // Sweeping upturned Kasagi top beam + Nuki lower beam + golden plaque
+      LM.box(g, 0.34, 0.024, 0.032, 0, 0.32, 0, verm);
+      LM.box(g, 0.38, 0.034, 0.048, 0, 0.38, 0, verm);
+      LM.box(g, 0.40, 0.016, 0.056, 0, 0.402, 0, black);
+      LM.box(g, 0.036, 0.058, 0.018, 0, 0.35, 0.018, gold, false);
+      routeGroup.add(g);
+    }
+
+    // 142. Sapporo, Hokkaido (CTS): Sapporo TV Tower + Snow Festival Illuminated Ice Castle
+    function createSapporoSnowTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const snow = LM.mat(0xf8fafc, 0.45, 0.10), red = LM.mat(0xdc2626, 0.55, 0.22);
+      const green = LM.mat(0x16a34a, 0.55, 0.20), clock = LM.glow(2.2, 0.55, 0.35);
+      const ice = LM.glow(0.65, 1.75, 2.3);
+      LM.plaza(g, 0.25, 0xe0f2fe);
+      // Sapporo TV Tower (red steel upper lattice + green base + glowing digital clock!)
+      LM.box(g, 0.095, 0.08, 0.095, -0.07, 0.08, -0.02, green);
+      LM.cyl(g, 0.022, 0.058, 0.32, 4, -0.07, 0.26, -0.02, red).rotation.y = Math.PI / 4;
+      LM.box(g, 0.068, 0.042, 0.068, -0.07, 0.36, -0.02, red);
+      LM.box(g, 0.048, 0.024, 0.008, -0.07, 0.28, 0.024, clock, false);
+      LM.cone(g, 0.012, 0.14, 6, -0.07, 0.48, -0.02, red);
+      LM.beacon(g, -0.07, 0.56, -0.02);
+      // Glowing blue-white Odori Park Snow Festival Ice Sculpture Castle!
+      LM.box(g, 0.13, 0.11, 0.10, 0.09, 0.095, 0.04, snow);
+      LM.cone(g, 0.032, 0.11, 6, 0.05, 0.20, 0.04, ice, false);
+      LM.cone(g, 0.032, 0.11, 6, 0.13, 0.20, 0.04, ice, false);
+      routeGroup.add(g);
+    }
+
+    // 143. Okinawa (OKA): Shuri Castle Vermilion Ryukyu Palace
+    function createOkinawaShuri(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const wall = LM.mat(0xd6d3d1, 0.80, 0.08), verm = LM.mat(0xb91c1c, 0.55, 0.14);
+      const tile = LM.mat(0x9a3412, 0.68, 0.10), gold = LM.mat(0xf59e0b, 0.25, 0.80);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Curved coral-limestone fortress wall + vermilion two-tier Ryukyu Seiden Palace!
+      LM.cyl(g, 0.18, 0.20, 0.06, 12, 0, 0.07, 0, wall);
+      LM.box(g, 0.22, 0.09, 0.12, 0, 0.14, 0, verm);
+      LM.box(g, 0.26, 0.024, 0.15, 0, 0.19, 0, tile);
+      LM.box(g, 0.16, 0.075, 0.095, 0, 0.235, 0, verm);
+      LM.cone(g, 0.14, 0.075, 4, 0, 0.305, 0, tile).rotation.y = Math.PI / 4;
+      LM.box(g, 0.06, 0.028, 0.015, 0, 0.235, 0.052, gold);
+      routeGroup.add(g);
+    }
+
+    // 144. Busan (PUS): Neon-Lit Gwangan Diamond Suspension Bridge + Busan Tower
+    function createBusanBridge(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sea = LM.mat(0x0c4a6e, 0.24, 0.38), steel = LM.mat(0xe2e8f0, 0.32, 0.68);
+      const neon = LM.glow(0.45, 1.65, 2.3), pink = LM.glow(2.2, 0.45, 1.55);
+      LM.box(g, 0.48, 0.09, 0.26, 0, -0.015, 0, sea, false);
+      // Iconic double-deck Gwangan Diamond Bridge glowing cyan & magenta at night!
+      LM.box(g, 0.44, 0.022, 0.055, 0, 0.125, 0.04, steel);
+      LM.box(g, 0.44, 0.008, 0.060, 0, 0.135, 0.04, neon, false);
+      for (const px of [-0.12, 0.12]) {
+        LM.box(g, 0.024, 0.28, 0.042, px, 0.18, 0.04, steel);
+        LM.box(g, 0.026, 0.016, 0.046, px, 0.30, 0.04, pink, false);
+      }
+      const c = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.006, 6, 20, Math.PI), neon);
+      c.position.set(0, 0.28, 0.04); c.rotation.z = Math.PI; g.add(c);
+      // Busan Tower white octagon deck on Yongdusan behind the bay
+      LM.cyl(g, 0.016, 0.022, 0.34, 8, 0, 0.21, -0.08, steel);
+      LM.cyl(g, 0.042, 0.032, 0.055, 8, 0, 0.34, -0.08, steel);
+      LM.cone(g, 0.044, 0.045, 8, 0, 0.39, -0.08, LM.mat(0x16a34a, 0.45, 0.3));
+      routeGroup.add(g);
+    }
+
+    // 145. Hanoi / Ha Long Bay (HAN): Emerald Limestone Karst Sea Pillars + Red-Sail Junk Boat
+    function createHaLongBay(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const emeraldSea = LM.mat(0x0d9488, 0.22, 0.35), rock = LM.mat(0x475569, 0.88, 0.06);
+      const jungle = LM.mat(0x15803d, 0.85, 0.05), hull = LM.mat(0x78350f, 0.82, 0.06);
+      const sail = LM.mat(0xb91c1c, 0.72, 0.06);
+      LM.plaza(g, 0.26, 0x0d9488);
+      // Iconic Ha Long Bay karst limestone monoliths & "Fighting Cocks" twin islets!
+      const pillars = [[-0.10, -0.06, 0.055, 0.34], [0.09, -0.08, 0.062, 0.38], [-0.14, 0.06, 0.042, 0.22], [0.14, 0.05, 0.048, 0.26]];
+      for (const [x, z, r, h] of pillars) {
+        LM.cyl(g, r * 0.72, r, h, 7, x, 0.04 + h * 0.5, z, rock);
+        LM.sph(g, r * 0.85, x, 0.04 + h, z, jungle, 8);
+      }
+      // Traditional Vietnamese red-ribbed-sail Junk Boat cruising between the karsts!
+      LM.box(g, 0.11, 0.024, 0.036, 0, 0.052, 0.08, hull);
+      LM.box(g, 0.008, 0.11, 0.062, 0.01, 0.115, 0.08, sail).rotation.y = 0.2;
+      LM.box(g, 0.008, 0.08, 0.045, -0.03, 0.10, 0.08, sail).rotation.y = 0.2;
+      routeGroup.add(g);
+    }
+
+    // 146. Ho Chi Minh City (SGN): Bitexco Financial Tower Lotus Helipad + Landmark 81
+    function createSaigonBitexco(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const glass = LM.winMat('#0f2942', ['#bae6fd', '#fde68a', '#e0f2fe'], '#38bdf8', 0.68, 0.20, 0.65);
+      const pad = LM.mat(0xe2e8f0, 0.35, 0.60), ring = LM.glow(0.45, 2.0, 2.2);
+      LM.plaza(g, 0.24, 0x334155);
+      // Bitexco Financial Tower — tapering lotus-bud glass tower + unmistakable cantilevered circular helipad!
+      LM.cyl(g, 0.034, 0.062, 0.46, 14, -0.06, 0.27, 0.02, glass).scale.set(1.2, 1, 0.75);
+      LM.box(g, 0.08, 0.012, 0.028, 0.01, 0.34, 0.02, pad);
+      LM.cyl(g, 0.044, 0.044, 0.010, 16, 0.048, 0.345, 0.02, pad);
+      LM.tor(g, 0.044, 0.004, 0.048, 0.352, 0.02, ring);
+      // Landmark 81 (Vietnam's tallest bundled-bamboo-tubes skyscraper) beside it!
+      for (const [bx, bz, bh] of [[0.10, -0.05, 0.56], [0.135, -0.05, 0.42], [0.065, -0.05, 0.45], [0.10, -0.015, 0.38]]) {
+        LM.box(g, 0.034, bh, 0.034, bx, 0.04 + bh * 0.5, bz, glass);
+      }
+      LM.beacon(g, 0.10, 0.62, -0.05);
+      routeGroup.add(g);
+    }
+
+    // 147. Jakarta (CGK): Monas (National Monument) Marble Obelisk + Solid-Gold Flame
+    function createJakartaMonas(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const marble = LM.mat(0xf8fafc, 0.52, 0.12), flame = LM.glow(2.4, 1.75, 0.25);
+      const grass = LM.mat(0x3f6212, 0.86, 0.05);
+      LM.plaza(g, 0.25, 0x3f6212);
+      // Iconic Merdeka Square flared goblet base + soaring white marble obelisk + flaming golden crown!
+      LM.box(g, 0.18, 0.055, 0.18, 0, 0.068, 0, marble);
+      LM.cyl(g, 0.115, 0.055, 0.065, 4, 0, 0.12, 0, marble).rotation.y = Math.PI / 4;
+      LM.cyl(g, 0.024, 0.036, 0.38, 4, 0, 0.34, 0, marble).rotation.y = Math.PI / 4;
+      LM.box(g, 0.055, 0.024, 0.055, 0, 0.54, 0, marble);
+      LM.cone(g, 0.028, 0.11, 10, 0, 0.605, 0, flame, false);
+      LM.sph(g, 0.026, 0, 0.57, 0, flame, 10);
+      routeGroup.add(g);
+    }
+
+    // 148. Manila / Luzon (MNL): Mayon Perfect Symmetric Volcano + Rizal Monument
+    function createManilaMayon(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const green = LM.mat(0x15803d, 0.86, 0.04), ash = LM.mat(0x57534e, 0.88, 0.06);
+      const glow = LM.glow(2.3, 0.65, 0.15), granite = LM.mat(0xd6d3d1, 0.72, 0.12);
+      LM.plaza(g, 0.26, 0x166534);
+      // Mayon Volcano — world's most geometrically perfect volcanic cone!
+      LM.cyl(g, 0.11, 0.23, 0.18, 20, -0.02, 0.12, -0.03, green);
+      LM.cyl(g, 0.018, 0.115, 0.30, 20, -0.02, 0.35, -0.03, ash);
+      LM.cyl(g, 0.018, 0.015, 0.015, 12, -0.02, 0.505, -0.03, glow, false);
+      // Rizal Park granite obelisk monument in front
+      LM.cyl(g, 0.012, 0.024, 0.22, 4, 0.12, 0.15, 0.10, granite).rotation.y = Math.PI / 4;
+      routeGroup.add(g);
+    }
+
+    // 149. Islamabad (ISB): Faisal Mosque — Iconic Giant White Bedouin Tent + 4 Pencil Minarets
+    function createIslamabadFaisal(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const white = LM.mat(0xf8fafc, 0.48, 0.10), gold = LM.mat(0xf59e0b, 0.24, 0.82);
+      const warm = LM.glow(2.1, 1.85, 1.2);
+      LM.plaza(g, 0.25, 0x334155);
+      // Unmistakable sweeping eight-sided white marble Bedouin tent sanctuary (zero domes!)
+      LM.cone(g, 0.16, 0.26, 4, 0, 0.17, 0, white).rotation.y = Math.PI / 4;
+      LM.box(g, 0.22, 0.022, 0.22, 0, 0.052, 0, warm, false);
+      // Four soaring ultra-slender Turkish-style pencil minarets at the four corners!
+      for (const sx of [-0.135, 0.135]) for (const sz of [-0.135, 0.135]) {
+        LM.cyl(g, 0.010, 0.014, 0.42, 8, sx, 0.25, sz, white);
+        LM.cone(g, 0.012, 0.065, 8, sx, 0.49, sz, gold);
+      }
+      routeGroup.add(g);
+    }
+
+    // 150. Xi'an (XIY): Giant Wild Goose Pagoda (7-Story Square Tang Dynasty Brick Pagoda)
+    function createXianPagoda(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const brick = LM.mat(0xb89668, 0.80, 0.08), eave = LM.mat(0x785a3a, 0.78, 0.08);
+      const gold = LM.mat(0xf59e0b, 0.28, 0.78);
+      LM.plaza(g, 0.24, 0x475569);
+      LM.box(g, 0.24, 0.045, 0.24, 0, 0.06, 0, eave);
+      // Seven clean diminishing square Tang-dynasty brick tiers with subtle cornice eaves!
+      for (let i = 0; i < 7; i++) {
+        const w = 0.15 - i * 0.015;
+        const y = 0.11 + i * 0.058;
+        LM.box(g, w, 0.052, w, 0, y, 0, brick);
+        LM.box(g, w + 0.016, 0.011, w + 0.016, 0, y + 0.026, 0, eave);
+      }
+      LM.cone(g, 0.038, 0.06, 4, 0, 0.54, 0, eave).rotation.y = Math.PI / 4;
+      LM.sph(g, 0.014, 0, 0.58, 0, gold, 8);
+      routeGroup.add(g);
+    }
+
+    // 151. Bora Bora / Tahiti (PPT): Jagged Emerald Mount Otemanu + Overwater Bungalows!
+    function createBoraBoraLagoon(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const lagoon = LM.mat(0x06b6d4, 0.18, 0.35), rock = LM.mat(0x334155, 0.88, 0.06);
+      const jungle = LM.mat(0x16a34a, 0.82, 0.04), thatch = LM.mat(0xc29b6e, 0.85, 0.05);
+      const wood = LM.mat(0x78350f, 0.85, 0.05);
+      LM.plaza(g, 0.26, 0x06b6d4);
+      // Iconic jagged twin-spire emerald extinct volcano Mount Otemanu!
+      LM.cyl(g, 0.11, 0.17, 0.12, 9, -0.05, 0.08, -0.05, jungle);
+      LM.cone(g, 0.11, 0.42, 6, -0.06, 0.28, -0.06, rock).scale.set(0.85, 1, 1.25);
+      LM.cone(g, 0.075, 0.30, 5, 0.02, 0.22, -0.04, jungle);
+      // Wooden boardwalk + three cute thatched-roof overwater bungalows on stilts!
+      LM.box(g, 0.18, 0.010, 0.022, 0.07, 0.068, 0.09, wood);
+      for (const [bx, bz] of [[0.03, 0.125], [0.10, 0.125], [0.15, 0.065]]) {
+        LM.box(g, 0.036, 0.024, 0.032, bx, 0.078, bz, wood);
+        LM.cone(g, 0.032, 0.032, 4, bx, 0.105, bz, thatch).rotation.y = Math.PI / 4;
+      }
+      routeGroup.add(g);
+    }
+
+    // 152. Cairns / Great Barrier Reef (CNS): Glowing Turquoise Heart Reef Coral Atoll + Yacht
+    function createGreatBarrierReef(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const ocean = LM.mat(0x0369a1, 0.20, 0.38), aqua = LM.glow(0.35, 1.95, 2.0);
+      const coral = LM.mat(0xf472b6, 0.72, 0.08), reefGold = LM.mat(0xfbbf24, 0.72, 0.08);
+      const white = LM.mat(0xf8fafc, 0.35, 0.25);
+      LM.plaza(g, 0.26, 0x0369a1);
+      // Iconic turquoise Heart-Shaped Coral Atoll ring glowing in the Coral Sea!
+      LM.tor(g, 0.145, 0.026, 0, 0.052, 0, aqua, Math.PI / 2, 24);
+      // Vibrant pink & golden coral heads emerging along the lagoon rim
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        LM.sph(g, 0.026, Math.cos(a) * 0.145, 0.065, Math.sin(a) * 0.145, i % 2 === 0 ? coral : reefGold, 8);
+      }
+      // White reef catamaran anchored in the crystal-clear lagoon!
+      LM.box(g, 0.095, 0.020, 0.042, 0, 0.062, 0.01, white);
+      LM.cone(g, 0.032, 0.095, 3, 0, 0.115, 0.01, white);
+      routeGroup.add(g);
+    }
+
+    // 153. Brisbane / Gold Coast (BNE): Story Bridge Cantilever Arch + Q1 SkyPoint Needle
+    function createBrisbaneBridge(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0c4a6e, 0.24, 0.38), steel = LM.mat(0xcbd5e1, 0.38, 0.62);
+      const led = LM.glow(1.9, 0.55, 2.2), glass = LM.winMat('#0f2942', ['#93c5fd', '#e0f2fe', '#fef08a'], '#38bdf8', 0.65);
+      LM.plaza(g, 0.25, 0x0c4a6e);
+      // Story Bridge steel cantilever spans lit up in Brisbane purple!
+      LM.box(g, 0.38, 0.016, 0.042, -0.02, 0.10, 0.06, steel);
+      for (const bx of [-0.10, 0.06]) {
+        LM.cone(g, 0.062, 0.15, 4, bx, 0.175, 0.06, steel).rotation.y = Math.PI / 4;
+        LM.tor(g, 0.038, 0.004, bx, 0.16, 0.06, led);
+      }
+      // Gold Coast Q1 (Australia's tallest residential spire) rising beside it!
+      LM.box(g, 0.072, 0.40, 0.065, 0.11, 0.24, -0.06, glass);
+      LM.cone(g, 0.016, 0.22, 8, 0.11, 0.54, -0.06, steel);
+      LM.beacon(g, 0.11, 0.66, -0.06);
+      routeGroup.add(g);
+    }
+
+    // 154. Perth (PER): Swan Bell Tower Glass-and-Copper Sail Spire + Swan River
+    function createPerthBellTower(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const river = LM.mat(0x0284c7, 0.22, 0.38), glass = LM.winMat('#1e3a5f', ['#bae6fd', '#fde68a'], '#60a5fa', 0.62);
+      const copper = LM.mat(0x2a7b6f, 0.32, 0.68), gold = LM.glow(2.2, 1.75, 0.5);
+      LM.plaza(g, 0.25, 0x0284c7);
+      // Iconic futuristic Bell Tower (Barrack Square) with soaring green-copper swan-wing sails!
+      LM.cyl(g, 0.034, 0.052, 0.34, 12, 0, 0.21, 0, glass);
+      for (const sx of [-1, 1]) {
+        const wing = LM.cone(g, 0.062, 0.34, 4, sx * 0.078, 0.20, 0, copper);
+        wing.scale.set(0.42, 1, 1.35); wing.rotation.z = sx * 0.22;
+      }
+      LM.cone(g, 0.022, 0.24, 10, 0, 0.49, 0, copper);
+      LM.tor(g, 0.044, 0.005, 0, 0.30, 0, gold);
+      LM.beacon(g, 0, 0.62, 0);
+      routeGroup.add(g);
+    }
+
+    // Unified Data-Driven Global Landmark Hub Registry (165 iconic hubs covering ~2,300 OpenFlights airports!)
     const LANDMARK_HUBS = [
       // Core & International Mega-Hubs
       { id: 'tokyo',        lat: 35.66,  lon: 139.75,  radius: 1.8,  build: createTokyoTowerFuji },
@@ -7570,7 +8609,7 @@
       { id: 'easterisland', lat: -27.12, lon: -109.35, radius: 2.0,  build: createEasterIslandMoai },
       { id: 'katowice',     lat: 50.27,  lon: 19.03,   radius: 0.65, build: createKatowiceSpodek },
       { id: 'kilimanjaro',  lat: -3.07,  lon: 37.35,   radius: 1.8,  build: createKilimanjaro },
-      // Pass 2: 50 Additional Global & OpenFlights Hubs (+ Antarctica polar region = 112 total!)
+      // Pass 2: 50 Additional Global & OpenFlights Hubs (+ Antarctica polar region = 112)
       { id: 'wroclaw',      lat: 51.11,  lon: 17.04,   radius: 0.80, build: createWroclawSkyTower },
       { id: 'poznan',       lat: 52.41,  lon: 16.93,   radius: 0.80, build: createPoznanRatusz },
       { id: 'szczecin',     lat: 53.43,  lon: 14.55,   radius: 0.85, build: createSzczecinPhilharmonic },
@@ -7620,7 +8659,61 @@
       { id: 'bali',         lat: -8.65,  lon: 115.22,  radius: 1.60, build: createBaliTemple },
       { id: 'yangon',       lat: 16.80,  lon: 96.15,   radius: 2.00, build: createYangonShwedagon },
       { id: 'melbourne',    lat: -37.81, lon: 144.96,  radius: 1.60, build: createMelbourneEureka },
-      { id: 'queenstown',   lat: -44.40, lon: 170.10,  radius: 2.20, build: createQueenstownMitrePeak }
+      { id: 'queenstown',   lat: -44.40, lon: 170.10,  radius: 2.20, build: createQueenstownMitrePeak },
+      // Pass 3: 53 More Global Landmarks (165 hubs total -> ~30% of all OpenFlights airports!)
+      { id: 'bydgoszcz',    lat: 53.12,  lon: 18.00,   radius: 0.70, build: createBydgoszczGranaries },
+      { id: 'lublin',       lat: 51.25,  lon: 22.57,   radius: 0.75, build: createLublinCastle },
+      { id: 'porto',        lat: 41.15,  lon: -8.61,   radius: 1.30, build: createPortoBridge },
+      { id: 'bilbao',       lat: 43.27,  lon: -2.93,   radius: 1.40, build: createBilbaoGuggenheim },
+      { id: 'tenerife',     lat: 28.27,  lon: -16.64,  radius: 2.20, build: createTenerifeTeide },
+      { id: 'riviera',      lat: 43.65,  lon: 6.45,    radius: 1.50, build: createRivieraMonaco },
+      { id: 'lyon',         lat: 45.76,  lon: 4.83,    radius: 1.20, build: createLyonFourviere },
+      { id: 'vilnius',      lat: 54.69,  lon: 25.29,   radius: 1.25, build: createVilniusGediminas },
+      { id: 'riga',         lat: 56.95,  lon: 24.11,   radius: 1.30, build: createRigaTower },
+      { id: 'sofia',        lat: 42.70,  lon: 23.33,   radius: 1.30, build: createSofiaCathedral },
+      { id: 'belgrade',     lat: 44.80,  lon: 20.47,   radius: 1.25, build: createBelgradeStSava },
+      { id: 'dubrovnik',    lat: 42.64,  lon: 18.11,   radius: 1.20, build: createDubrovnikWalls },
+      { id: 'zagreb',       lat: 45.81,  lon: 15.98,   radius: 1.25, build: createZagrebCathedral },
+      { id: 'thessaloniki', lat: 40.63,  lon: 22.95,   radius: 1.25, build: createThessalonikiTower },
+      { id: 'malta',        lat: 35.90,  lon: 14.51,   radius: 1.40, build: createMaltaValletta },
+      { id: 'caucasus',     lat: 40.80,  lon: 44.60,   radius: 1.80, build: createCaucasusArarat },
+      { id: 'mallorca',     lat: 39.57,  lon: 2.65,    radius: 1.40, build: createMallorcaCathedral },
+      { id: 'dallas',       lat: 32.78,  lon: -96.81,  radius: 1.65, build: createDallasReunion },
+      { id: 'portland',     lat: 45.52,  lon: -122.67, radius: 1.15, build: createPortlandMountHood },
+      { id: 'neworleans',   lat: 29.96,  lon: -90.06,  radius: 1.50, build: createNewOrleansCathedral },
+      { id: 'nashville',    lat: 36.16,  lon: -86.78,  radius: 1.45, build: createNashvilleBatman },
+      { id: 'saltlake',     lat: 40.77,  lon: -111.89, radius: 1.60, build: createSaltLakeTemple },
+      { id: 'sanjuan',      lat: 18.47,  lon: -66.12,  radius: 1.60, build: createSanJuanElMorro },
+      { id: 'nassau',       lat: 25.08,  lon: -77.32,  radius: 1.60, build: createNassauAtlantis },
+      { id: 'costarica',    lat: 10.20,  lon: -84.40,  radius: 1.65, build: createCostaRicaArenal },
+      { id: 'pittsburgh',   lat: 40.44,  lon: -80.00,  radius: 1.30, build: createPittsburghPPG },
+      { id: 'cincinnati',   lat: 39.10,  lon: -84.51,  radius: 1.35, build: createCincinnatiRoebling },
+      { id: 'iguazu',       lat: -25.69, lon: -54.44,  radius: 1.80, build: createIguazuFalls },
+      { id: 'lima',         lat: -12.05, lon: -77.04,  radius: 1.80, build: createLimaCathedral },
+      { id: 'quito',        lat: -0.18,  lon: -78.47,  radius: 1.80, build: createQuitoEquator },
+      { id: 'montevideo',   lat: -34.91, lon: -56.20,  radius: 1.20, build: createMontevideoSalvo },
+      { id: 'mecca',        lat: 21.42,  lon: 39.83,   radius: 1.80, build: createMeccaClockTower },
+      { id: 'kuwait',       lat: 29.39,  lon: 48.00,   radius: 1.60, build: createKuwaitTowers },
+      { id: 'tehran',       lat: 35.70,  lon: 51.34,   radius: 1.80, build: createTehranAzadi },
+      { id: 'muscat',       lat: 23.58,  lon: 58.39,   radius: 1.80, build: createMuscatMosque },
+      { id: 'baghdad',      lat: 33.34,  lon: 44.45,   radius: 1.80, build: createBaghdadMonument },
+      { id: 'tunis',        lat: 36.87,  lon: 10.35,   radius: 1.80, build: createTunisCarthage },
+      { id: 'madagascar',   lat: -19.50, lon: 46.00,   radius: 2.50, build: createMadagascarBaobabs },
+      { id: 'mauritius',    lat: -20.45, lon: 57.32,   radius: 2.00, build: createMauritiusLeMorne },
+      { id: 'hiroshima',    lat: 34.10,  lon: 131.65,  radius: 1.80, build: createMiyajimaTorii },
+      { id: 'sapporo',      lat: 43.06,  lon: 141.35,  radius: 1.80, build: createSapporoSnowTower },
+      { id: 'okinawa',      lat: 26.22,  lon: 127.72,  radius: 1.80, build: createOkinawaShuri },
+      { id: 'busan',        lat: 35.15,  lon: 129.13,  radius: 1.25, build: createBusanBridge },
+      { id: 'hanoi',        lat: 20.95,  lon: 106.50,  radius: 1.80, build: createHaLongBay },
+      { id: 'saigon',       lat: 10.77,  lon: 106.70,  radius: 1.70, build: createSaigonBitexco },
+      { id: 'jakarta',      lat: -6.18,  lon: 106.83,  radius: 1.70, build: createJakartaMonas },
+      { id: 'manila',       lat: 14.20,  lon: 121.50,  radius: 1.80, build: createManilaMayon },
+      { id: 'islamabad',    lat: 33.73,  lon: 73.04,   radius: 1.60, build: createIslamabadFaisal },
+      { id: 'xian',         lat: 34.22,  lon: 108.96,  radius: 1.80, build: createXianPagoda },
+      { id: 'borabora',     lat: -17.00, lon: -150.50, radius: 2.50, build: createBoraBoraLagoon },
+      { id: 'greatbarrier', lat: -17.50, lon: 146.50,  radius: 2.20, build: createGreatBarrierReef },
+      { id: 'brisbane',     lat: -27.47, lon: 153.03,  radius: 1.80, build: createBrisbaneBridge },
+      { id: 'perth',        lat: -31.96, lon: 115.86,  radius: 1.80, build: createPerthBellTower }
     ];
 
     function matchLandmarkHub(lat, lon) {
