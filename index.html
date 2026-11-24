@@ -765,6 +765,13 @@
       color: var(--muted);
       z-index: 10;
       pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    @media (max-width: 1520px) {
+      #cam-mode-badge.visible ~ .hint-badge {
+        opacity: 0;
+      }
     }
 
     .controls-bar {
@@ -4622,6 +4629,8 @@
 
     let camMode = 'free'; // 'free' | 'cockpit' | 'cabin' | 'hook' | 'director'
     let targetFov = 43;
+    let actionCamZoom = 1.0;
+    let actionCamZoomTarget = 1.0;
     let camSnapNext = false;
     let lastDirectorCutKey = '';
     let currentDirectorShot = '';
@@ -4641,29 +4650,50 @@
         camModeBadge.classList.remove('visible');
       } else {
         camModeTitleEl.textContent = CAM_MODE_LABELS[camMode] || 'KAMERA AKCJI';
-        camModeSubEl.textContent = subText ? `• ${subText}` : '';
+        const zoomTag = Math.abs(actionCamZoom - 1.0) > 0.04 ? ` • ${(1 / actionCamZoom).toFixed(1)}×` : '';
+        camModeSubEl.textContent = (subText ? `• ${subText}` : '') + zoomTag;
         camModeBadge.classList.add('visible');
       }
     }
 
-    function exitActionCamToFree(resetUp = true) {
+    function exitActionCamToFree(resetUp = true, pivotToSubject = false) {
       if (camMode === 'free') return;
+      const prevMode = camMode;
       camMode = 'free';
       targetFov = 43;
+      actionCamZoom = 1.0;
+      actionCamZoomTarget = 1.0;
       lastDirectorCutKey = '';
       currentDirectorShot = '';
+      if (pivotToSubject) {
+        if (prevMode === 'cockpit' || prevMode === 'hook') {
+          controls.target.copy(planeInfo.pos);
+        } else {
+          controls.target.copy(planeInfo.pos).multiplyScalar(0.65);
+        }
+        const offset = camera.position.clone().sub(controls.target);
+        if (offset.length() < Math.max(0.55, routeScale * 1.15)) {
+          offset.setLength(Math.max(0.55, routeScale * 1.15));
+          camera.position.copy(controls.target).add(offset);
+        }
+        const dir = offset.clone().normalize();
+        if (Math.abs(dir.y) > 0.96) {
+          camera.position.x += 0.25 * Math.max(0.4, routeScale);
+        }
+      }
       if (resetUp) camera.up.copy(UP);
       controls.enabled = true;
+      controls.update();
       syncCamModeUI();
     }
 
     function setCamMode(mode) {
       if (mode === camMode && mode !== 'free') {
-        exitActionCamToFree(true);
+        exitActionCamToFree(true, true);
         return;
       }
       if (mode === 'free') {
-        exitActionCamToFree(true);
+        exitActionCamToFree(true, true);
         return;
       }
       hideIntro();
@@ -4673,6 +4703,8 @@
       camTransition = null;
       setActiveCamBtn(null);
       camMode = mode;
+      actionCamZoom = 1.0;
+      actionCamZoomTarget = 1.0;
       camSnapNext = true;
       lastDirectorCutKey = '';
       currentDirectorShot = '';
@@ -4763,16 +4795,18 @@
       const rs = Math.max(0.24, routeScale);
       const stopIdx = Math.min(pads.length - 1, Math.max(0, step.stopIdx ?? 0));
       const pad = pads[stopIdx] || pads[0];
+      const z = actionCamZoom;
 
       if (shotType === 'cockpit') {
         airplane.group.updateMatrixWorld(true);
-        airplane.group.localToWorld(_actPos.set(0.0, 0.34, -0.66));
+        airplane.group.localToWorld(_actPos.set(0.0, 0.34 * z, -0.66 * z));
         airplane.group.localToWorld(_actTarget.set(0.0, -0.32, 1.45));
         _cNormal.copy(airplane.group.position).normalize();
         _cUp.set(0, 1, 0).applyQuaternion(airplane.group.quaternion).normalize();
         _actUp.copy(_cNormal).lerp(_cUp, 0.45).normalize();
         const city = activeStops[stopIdx]?.displayCity || '';
-        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 62, smooth: 13, minAlt: 0.05 * rs, sub: state.S.att ? `W powietrzu • ${step.crane}` : `Na płycie • ${city}` };
+        const fov = THREE.MathUtils.clamp(62 * (0.86 + 0.14 * z), 42, 76);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov, smooth: 13, minAlt: 0.05 * rs, sub: state.S.att ? `W powietrzu • ${step.crane}` : `Na płycie • ${city}` };
       }
 
       if (shotType === 'cabin' && c) {
@@ -4784,7 +4818,8 @@
         const focusObj = state.S.att === legIdx + 1 ? airplane.group.position : c.hookGroup.position;
         _actTarget.copy(focusObj).lerp(_trolleyW, 0.26);
         _actUp.copy(c.normal);
-        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 54, smooth: 9, minAlt: 0.08 * rs, sub: `Dźwig ${legIdx + 1} • Ramię ${(c.jibLength * 1274).toFixed(0)} km` };
+        const fov = THREE.MathUtils.clamp(54 * z, 22, 82);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov, smooth: 9, minAlt: 0.08 * rs, sub: `Dźwig ${legIdx + 1} • Ramię ${(c.jibLength * 1274).toFixed(0)} km` };
       }
 
       if (shotType === 'hook' && c) {
@@ -4800,31 +4835,33 @@
         _cFwd.normalize();
         _cRight.crossVectors(_cFwd, _cUp).normalize();
 
-        const distUp = THREE.MathUtils.clamp(ropeLen * 0.48, 0.42 * rs, 1.45 * Math.max(0.45, rs));
+        const maxDist = Math.max(0.55 * rs, ropeLen * 0.94);
+        const distUp = THREE.MathUtils.clamp(ropeLen * 0.48 * z, 0.26 * rs, maxDist);
         _actPos.copy(_hookW)
           .addScaledVector(_cUp, distUp)
-          .addScaledVector(_cRight, 0.17 * Math.max(0.35, rs))
-          .addScaledVector(_cFwd, -0.10 * Math.max(0.35, rs));
+          .addScaledVector(_cRight, 0.17 * Math.max(0.35, rs) * Math.min(1.4, z))
+          .addScaledVector(_cFwd, -0.10 * Math.max(0.35, rs) * Math.min(1.4, z));
         _actTarget.copy(_hookW).addScaledVector(_cUp, -0.18 * rs);
         _actUp.copy(_cFwd);
-        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 58, smooth: 11, minAlt: 0.06 * rs, sub: `Dźwig ${legIdx + 1} • Pionowe zawiesie` };
+        const fov = THREE.MathUtils.clamp(58 * (0.88 + 0.12 * z), 40, 74);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov, smooth: 11, minAlt: 0.06 * rs, sub: `Dźwig ${legIdx + 1} • Pionowe zawiesie` };
       }
 
       if (shotType === 'orbital_chase') {
         airplane.group.updateMatrixWorld(true);
-        airplane.group.localToWorld(_actPos.set(0.72, 0.24, 0.88));
+        airplane.group.localToWorld(_actPos.set(0.72 * z, 0.24 * z, 0.88 * z));
         _actTarget.copy(airplane.group.position);
         _actUp.copy(airplane.group.position).normalize();
-        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 46, smooth: 8, minAlt: 0.08 * rs, sub: 'Pościg orbitalny' };
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: THREE.MathUtils.clamp(46 * (0.9 + 0.1 * z), 32, 64), smooth: 8, minAlt: 0.08 * rs, sub: 'Pościg orbitalny' };
       }
 
       if (shotType === 'macro_latch' && pad) {
         const f = surfaceFrame(pad.normal);
         const ang = (simTime - (step.t0 || 0)) * 0.65 + 0.6;
         _actPos.copy(airplane.group.position)
-          .addScaledVector(f.east, Math.cos(ang) * 0.56 * rs)
-          .addScaledVector(f.north, Math.sin(ang) * 0.56 * rs)
-          .addScaledVector(pad.normal, 0.20 * rs);
+          .addScaledVector(f.east, Math.cos(ang) * 0.56 * rs * z)
+          .addScaledVector(f.north, Math.sin(ang) * 0.56 * rs * z)
+          .addScaledVector(pad.normal, 0.20 * rs * z);
         _actTarget.copy(airplane.group.position).addScaledVector(pad.normal, 0.04 * rs);
         _actUp.copy(pad.normal);
         return { pos: _actPos, target: _actTarget, up: _actUp, fov: 38, smooth: 9, minAlt: 0.06 * rs, sub: 'Zbliżenie haka' };
@@ -4833,9 +4870,9 @@
       if (shotType === 'ground_hero' && pad && c) {
         const f = surfaceFrame(pad.normal);
         const swayT = Math.sin(sec * 0.45) * 0.16 * rs;
-        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.26 * rs)
-          .addScaledVector(f.east, 0.72 * rs + swayT)
-          .addScaledVector(f.north, -0.78 * rs);
+        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.26 * rs * z)
+          .addScaledVector(f.east, (0.72 * rs + swayT) * z)
+          .addScaledVector(f.north, -0.78 * rs * z);
         _actTarget.copy(airplane.group.position).lerp(c.hookGroup.position, 0.28);
         _actUp.copy(pad.normal);
         return { pos: _actPos, target: _actTarget, up: _actUp, fov: 44, smooth: 7, minAlt: 0.08 * rs, sub: 'Widok z płyty' };
@@ -4844,9 +4881,9 @@
       if (shotType === 'touchdown_dolly' && pad) {
         const f = surfaceFrame(pad.normal);
         const swayT = Math.sin(sec * 0.5) * 0.14 * rs;
-        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.28 * rs)
-          .addScaledVector(f.east, -0.76 * rs + swayT)
-          .addScaledVector(f.north, -0.66 * rs);
+        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.28 * rs * z)
+          .addScaledVector(f.east, (-0.76 * rs + swayT) * z)
+          .addScaledVector(f.north, -0.66 * rs * z);
         _actTarget.copy(airplane.group.position).lerp(pad.planeRestPos, 0.35);
         _actUp.copy(pad.normal);
         return { pos: _actPos, target: _actTarget, up: _actUp, fov: 42, smooth: 8, minAlt: 0.08 * rs, sub: 'Podejście do lądowania' };
@@ -4856,9 +4893,9 @@
         const destPad = pads[pads.length - 1] || pad;
         const f = surfaceFrame(destPad.normal);
         const ang = sec * 0.36;
-        _actPos.copy(destPad.normal).multiplyScalar(EARTH_RADIUS + 0.42 * rs)
-          .addScaledVector(f.east, Math.cos(ang) * 1.48 * rs)
-          .addScaledVector(f.north, Math.sin(ang) * 1.48 * rs);
+        _actPos.copy(destPad.normal).multiplyScalar(EARTH_RADIUS + 0.42 * rs * z)
+          .addScaledVector(f.east, Math.cos(ang) * 1.48 * rs * z)
+          .addScaledVector(f.north, Math.sin(ang) * 1.48 * rs * z);
         _actTarget.copy(destPad.normal).multiplyScalar(EARTH_RADIUS + 0.78 * rs);
         _actUp.copy(destPad.normal);
         return { pos: _actPos, target: _actTarget, up: _actUp, fov: 50, smooth: 6, minAlt: 0.10 * rs, sub: 'Finał • Fajerwerki' };
@@ -4866,16 +4903,16 @@
 
       // Default / handoff_wide
       const f = surfaceFrame(pad.normal);
-      _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 2.0 * rs)
-        .addScaledVector(f.north, -1.7 * rs)
-        .addScaledVector(f.east, 1.45 * rs);
+      _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 2.0 * rs * z)
+        .addScaledVector(f.north, -1.7 * rs * z)
+        .addScaledVector(f.east, 1.45 * rs * z);
       _actTarget.copy(pad.planeRestPos).addScaledVector(pad.normal, 0.32 * rs);
       _actUp.copy(pad.normal);
       return { pos: _actPos, target: _actTarget, up: _actUp, fov: 46, smooth: 6, minAlt: 0.12 * rs, sub: 'Choreografia dźwigów' };
     }
 
     window.__setCamMode = (mode) => setCamMode(mode);
-    window.__getCamMode = () => ({ mode: camMode, directorShot: currentDirectorShot, fov: Math.round(camera.fov * 10) / 10 });
+    window.__getCamMode = () => ({ mode: camMode, directorShot: currentDirectorShot, zoom: Math.round(actionCamZoom * 100) / 100, fov: Math.round(camera.fov * 10) / 10 });
 
     const labelsLayer = document.getElementById('labels-layer');
     let LABEL_DEFS = [];
@@ -5703,16 +5740,35 @@
       };
     };
 
-    renderer.domElement.addEventListener('pointerdown', () => {
+    let actionDragStart = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => {
       if (camMode !== 'free') {
-        exitActionCamToFree(true);
+        actionDragStart = { x: e.clientX, y: e.clientY };
+      } else {
+        actionDragStart = null;
       }
     });
-    renderer.domElement.addEventListener('wheel', () => {
-      if (camMode !== 'free') {
-        exitActionCamToFree(true);
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      if (camMode !== 'free' && actionDragStart && e.buttons !== 0) {
+        const dist = Math.hypot(e.clientX - actionDragStart.x, e.clientY - actionDragStart.y);
+        if (dist > 10) {
+          actionDragStart = null;
+          exitActionCamToFree(true, true);
+        }
       }
-    }, { passive: true });
+    });
+    window.addEventListener('pointerup', () => {
+      actionDragStart = null;
+    });
+
+    renderer.domElement.addEventListener('wheel', (e) => {
+      if (camMode !== 'free') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const factor = Math.exp(THREE.MathUtils.clamp(e.deltaY, -240, 240) * 0.0014);
+        actionCamZoomTarget = THREE.MathUtils.clamp(actionCamZoomTarget * factor, 0.45, 2.6);
+      }
+    }, { passive: false, capture: true });
 
     controls.addEventListener('start', () => {
       clearSkyHover();
@@ -5734,7 +5790,13 @@
       else if (e.key === '3') { e.preventDefault(); setCamMode('hook'); }
       else if (e.key === '4') { e.preventDefault(); setCamMode('director'); }
       else if (e.key === '0') { e.preventDefault(); flyToPreset('globe'); }
-      else if (e.key === 'Escape') {
+      else if (camMode !== 'free' && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        actionCamZoomTarget = THREE.MathUtils.clamp(actionCamZoomTarget * 0.85, 0.45, 2.6);
+      } else if (camMode !== 'free' && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        actionCamZoomTarget = THREE.MathUtils.clamp(actionCamZoomTarget / 0.85, 0.45, 2.6);
+      } else if (e.key === 'Escape') {
         if (!routeDrawer.classList.contains('closed')) {
           closeRouteDrawer();
         } else if (camMode !== 'free') {
@@ -5920,6 +5982,9 @@
       });
 
       if (camMode !== 'free') {
+        const zAlpha = 1 - Math.exp(-Math.max(dt, 1 / 60) * 10);
+        actionCamZoom = THREE.MathUtils.lerp(actionCamZoom, actionCamZoomTarget, zAlpha);
+
         let shotType = camMode;
         let subLabel = '';
         if (camMode === 'director') {
