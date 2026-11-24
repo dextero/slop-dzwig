@@ -1193,6 +1193,151 @@
       color: #fef3c7;
     }
 
+    /* Toast notification (URL Share & Photo Mode feedback) */
+    #app-toast {
+      position: fixed;
+      top: 64px;
+      left: 50%;
+      transform: translate(-50%, -10px);
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: rgba(11, 18, 34, 0.90);
+      border: 1px solid rgba(56, 189, 248, 0.50);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+      color: #e0f2fe;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      z-index: 48;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #app-toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    /* Camera shutter flash overlay */
+    #photo-flash {
+      position: fixed;
+      inset: 0;
+      background: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 60;
+      transition: opacity 0.30s ease-out;
+    }
+
+    #photo-flash.flash {
+      opacity: 0.72;
+      transition: none;
+    }
+
+    /* High-Res Photo Mode floating studio bar */
+    #photo-bar {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      max-width: calc(100vw - 24px);
+      padding: 8px 12px;
+      border-radius: 16px;
+      background: rgba(9, 14, 28, 0.86);
+      border: 1px solid rgba(148, 197, 255, 0.28);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      z-index: 35;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    #photo-bar.closed {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 14px);
+    }
+
+    .photo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: #fde68a;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(251, 191, 36, 0.14);
+      border: 1px solid rgba(251, 191, 36, 0.38);
+      text-transform: uppercase;
+    }
+
+    .photo-res-group {
+      display: inline-flex;
+      gap: 3px;
+      padding: 2px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .photo-res-btn {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+    }
+
+    .photo-res-btn.active {
+      background: rgba(56, 189, 248, 0.24);
+      border-color: rgba(56, 189, 248, 0.65);
+      color: #e0f2fe;
+    }
+
+    #btn-photo-snap {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.30), rgba(245, 158, 11, 0.24));
+      border-color: rgba(251, 191, 36, 0.72);
+      color: #fef3c7;
+      font-weight: 700;
+      padding: 6px 12px;
+    }
+
+    #btn-photo-snap:hover {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.44), rgba(245, 158, 11, 0.36));
+    }
+
+    /* Hide all HUD & 3D labels cleanly while in Photo Mode */
+    body.photo-mode .hud-panel,
+    body.photo-mode .controls-bar,
+    body.photo-mode .hint-badge,
+    body.photo-mode #cam-mode-badge,
+    body.photo-mode #manual-hud,
+    body.photo-mode #route-drawer,
+    body.photo-mode #sky-hover-tip,
+    body.photo-mode .intro-banner,
+    body.photo-mode #labels-layer,
+    body.photo-mode .globe-label,
+    body.photo-mode .sky-label {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
     #fallback {
       position: fixed;
       inset: 0;
@@ -1333,7 +1478,7 @@
     <button id="btn-cam-exit" class="cam-exit-btn" title="Powrót do swobodnego widoku (Esc)">✕</button>
   </div>
 
-  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • 1–4 = kamery • M = dźwięk</div>
+  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • 1–4 = kamery • P = zdjęcie • M = dźwięk</div>
 
   <div id="route-drawer" class="closed" aria-label="Konfigurator trasy">
     <div class="route-drawer-head">
@@ -1410,6 +1555,8 @@
     <button id="btn-speed">1× Prędkość</button>
     <button id="btn-sky" title="Pokaż/ukryj gwiazdozbiory i podpisy obiektów na niebie">✦ Niebo</button>
     <button id="btn-route" title="Konfiguruj trasę i lotniska">✎ Trasa</button>
+    <button id="btn-share" title="Skopiuj link URL do bieżącej trasy i ustawień">🔗 Udostępnij</button>
+    <button id="btn-photo" title="Tryb zdjęć bez HUD i zapis 4K PNG (klawisz P)">📷 Zdjęcie</button>
     <button id="btn-manual" title="Przejmij ręczne sterowanie dźwigiem: WASD + QE + Spacja (klawisz G)">🎮 Ręczny</button>
     <button id="btn-audio" class="audio-prompt" title="Włącz/wyłącz dźwięk proceduralny (skrót: M)">
       <span class="audio-icon">🔇</span>
@@ -1426,6 +1573,21 @@
     <button data-cam="globe" class="active">Glob</button>
     <div id="stop-cam-buttons" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
   </div>
+
+  <div id="photo-bar" class="closed" aria-label="Tryb zdjęć wysokiej rozdzielczości">
+    <span class="photo-badge">📷 TRYB ZDJĘĆ</span>
+    <div class="photo-res-group" role="group" aria-label="Rozdzielczość zdjęcia">
+      <button class="photo-res-btn" data-photo-res="1x" title="Rozdzielczość ekranu">HD</button>
+      <button class="photo-res-btn" data-photo-res="2k" title="2560px (2K QHD)">2K</button>
+      <button class="photo-res-btn active" data-photo-res="4k" title="3840px (4K UHD)">4K</button>
+    </div>
+    <button id="btn-photo-prev" title="Cofnij klatkę o 0.2s (←)">◀ −0.2s</button>
+    <button id="btn-photo-next" title="Przewiń klatkę o 0.2s (→)">+0.2s ▶</button>
+    <button id="btn-photo-snap" title="Zapisz czysty zrzut PNG bez HUD (Enter / Spacja)">📸 Zapisz PNG</button>
+    <button id="btn-photo-exit" title="Wyjdź z trybu zdjęć (Esc / P)">✕ Wyjdź</button>
+  </div>
+  <div id="photo-flash" aria-hidden="true"></div>
+  <div id="app-toast" role="status" aria-live="polite"></div>
 
   <div id="fallback">
     <div class="fallback-card">
@@ -6175,6 +6337,9 @@
         if (typeof renderSearchResults === 'function' && !routeDrawer.classList.contains('closed')) {
           renderSearchResults(searchInput.value);
         }
+        if (typeof sharePhotoCtrl !== 'undefined') {
+          sharePhotoCtrl.resolvePendingHashRoute();
+        }
       })
       .catch(() => {
         airportBadge.textContent = `${allAirports.length} lotnisk`;
@@ -7356,6 +7521,7 @@
       if (validateDraft()) return;
       rebuildRoute(draftStops, true);
       closeRouteDrawer();
+      if (typeof sharePhotoCtrl !== 'undefined') sharePhotoCtrl.syncUrlHash(false);
     });
 
     window.__setRouteByCodes = (codes) => {
@@ -7742,9 +7908,24 @@
         actionCamZoomTarget = THREE.MathUtils.clamp(actionCamZoomTarget / 0.85, 0.45, 2.6);
       } else if (e.key === 'g' || e.key === 'G') {
         e.preventDefault();
+        if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode()) return;
         if (typeof manualCtrl !== 'undefined') manualCtrl.toggle();
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        if (typeof sharePhotoCtrl !== 'undefined') sharePhotoCtrl.togglePhotoMode();
+      } else if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode() && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        sharePhotoCtrl.capturePng();
+      } else if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode() && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        sharePhotoCtrl.stepFrame(-0.2);
+      } else if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode() && e.key === 'ArrowRight') {
+        e.preventDefault();
+        sharePhotoCtrl.stepFrame(0.2);
       } else if (e.key === 'Escape') {
-        if (!routeDrawer.classList.contains('closed')) {
+        if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode()) {
+          sharePhotoCtrl.exitPhotoMode();
+        } else if (!routeDrawer.classList.contains('closed')) {
           closeRouteDrawer();
         } else if (camMode !== 'free') {
           flyToPreset('globe');
@@ -8745,19 +8926,459 @@
     window.__telemetry = telemetryCtrl;
 
     // -------------------------------------------------------------------------
+    // 11d. URL Route Sharing (#route=...&utc=...&speed=...&cam=...) & High-Res Photo Mode
+    // -------------------------------------------------------------------------
+    function createShareAndPhotoController() {
+      const btnShare = document.getElementById('btn-share');
+      const btnPhoto = document.getElementById('btn-photo');
+      const photoBar = document.getElementById('photo-bar');
+      const photoFlash = document.getElementById('photo-flash');
+      const toastEl = document.getElementById('app-toast');
+      const btnPhotoPrev = document.getElementById('btn-photo-prev');
+      const btnPhotoNext = document.getElementById('btn-photo-next');
+      const btnPhotoSnap = document.getElementById('btn-photo-snap');
+      const btnPhotoExit = document.getElementById('btn-photo-exit');
+      const resBtns = Array.from(photoBar.querySelectorAll('.photo-res-btn'));
+
+      let toastTimer = null;
+      let photoMode = false;
+      let wasPlayingBeforePhoto = true;
+      let photoRes = mobile ? '2k' : '4k';
+      let pendingHashRoute = null;
+      let isWritingHash = false;
+
+      // Highlight initial resolution pill cleanly
+      resBtns.forEach((b) => b.classList.toggle('active', b.dataset.photoRes === photoRes));
+
+      function showToast(msg, durationMs = 2800) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('visible');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastEl.classList.remove('visible');
+          toastTimer = null;
+        }, durationMs);
+      }
+
+      function parseHashState(rawHash = window.location.hash) {
+        const str = String(rawHash || '').replace(/^#/, '').trim();
+        if (!str) return null;
+        const params = new URLSearchParams(str);
+        const out = {};
+
+        const rawRoute = params.get('route');
+        if (rawRoute) {
+          const codes = rawRoute
+            .split(',')
+            .map((c) => c.trim().toUpperCase())
+            .filter(Boolean)
+            .slice(0, 8);
+          if (codes.length >= 2) out.route = codes;
+        }
+
+        const rawUtc = params.get('utc');
+        if (rawUtc !== null && rawUtc !== '') {
+          const v = parseFloat(rawUtc);
+          if (Number.isFinite(v)) out.utc = ((v % 24) + 24) % 24;
+        }
+
+        const rawSpeed = params.get('speed');
+        if (rawSpeed !== null && rawSpeed !== '') {
+          const v = parseFloat(rawSpeed);
+          if (SPEEDS.includes(v)) out.speed = v;
+        }
+
+        const rawCam = (params.get('cam') || '').trim().toLowerCase();
+        if (['cockpit', 'cabin', 'hook', 'director', 'follow'].includes(rawCam)) {
+          out.cam = rawCam;
+        }
+
+        const rawSky = (params.get('sky') || '').trim().toLowerCase();
+        if (rawSky === '1' || rawSky === 'true') out.sky = true;
+        else if (rawSky === '0' || rawSky === 'false') out.sky = false;
+
+        return Object.keys(out).length ? out : null;
+      }
+
+      function buildHashString(includeAll = false) {
+        const params = new URLSearchParams();
+        const codes = activeStops.map((s) => s.iata || s.icao || s.code).filter(Boolean);
+        const isDefaultRoute = codes.length === 3 && codes[0] === 'HND' && codes[1] === 'SFJ' && codes[2] === 'CDG';
+
+        if (includeAll || !isDefaultRoute) {
+          params.set('route', codes.join(','));
+        }
+        if (includeAll) {
+          params.set('utc', utcHours.toFixed(2));
+        }
+        if (includeAll || speedMultiplier !== 1.0) {
+          params.set('speed', String(speedMultiplier));
+        }
+        if (camMode !== 'free') {
+          params.set('cam', camMode);
+        } else if (followPlane) {
+          params.set('cam', 'follow');
+        }
+        if (showSkyMap) {
+          params.set('sky', '1');
+        }
+        return params.toString().replace(/%2C/gi, ',');
+      }
+
+      function syncUrlHash(includeAll = false) {
+        const hashStr = buildHashString(includeAll);
+        const targetHash = hashStr ? `#${hashStr}` : '';
+        try {
+          isWritingHash = true;
+          if (targetHash) {
+            history.replaceState(null, '', targetHash);
+          } else if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        } catch (_) {
+          // Ignore in restricted iframe origins
+        } finally {
+          setTimeout(() => { isWritingHash = false; }, 0);
+        }
+        const base = window.location.href.split('#')[0];
+        return targetHash ? `${base}${targetHash}` : base;
+      }
+
+      function getShareUrl() {
+        const hashStr = buildHashString(true);
+        const base = window.location.href.split('#')[0];
+        return `${base}#${hashStr}`;
+      }
+
+      function applySettingsFromHash(h, isBoot = false) {
+        if (!h) return { customCamApplied: false };
+        let customCamApplied = false;
+
+        if (typeof h.utc === 'number') {
+          setSunUTC(h.utc);
+        }
+        if (typeof h.speed === 'number') {
+          const idx = SPEEDS.indexOf(h.speed);
+          if (idx >= 0) {
+            speedIdx = idx;
+            speedMultiplier = SPEEDS[idx];
+            btnSpeed.textContent = `${speedMultiplier}× Prędkość`;
+          }
+        }
+        if (typeof h.sky === 'boolean') {
+          showSkyMap = h.sky;
+          btnSky.classList.toggle('active', showSkyMap);
+          constellationLines.visible = showSkyMap;
+          if (!showSkyMap) {
+            for (const s of skyLabelDefs) s.el.style.opacity = '0';
+          }
+        }
+        if (h.cam) {
+          hideIntro();
+          if (h.cam === 'follow') {
+            exitActionCamToFree(true);
+            followPlane = true;
+            btnFollow.classList.add('active');
+            camTransition = null;
+            setActiveCamBtn(null);
+            customCamApplied = true;
+          } else {
+            setCamMode(h.cam);
+            customCamApplied = true;
+          }
+        }
+        return { customCamApplied };
+      }
+
+      function bootFromHash() {
+        const h = parseHashState(window.location.hash);
+        let stopsToBuild = DEFAULT_STOPS;
+        let usedCustomRoute = false;
+
+        if (h && h.route) {
+          const resolved = h.route.map((c) => airportsByCode.get(c)).filter(Boolean);
+          if (resolved.length === h.route.length && resolved.length >= 2) {
+            stopsToBuild = resolved;
+            usedCustomRoute = true;
+          } else {
+            // Defer full route until OpenFlights airports.dat finishes loading
+            pendingHashRoute = h;
+            if (resolved.length >= 2) {
+              stopsToBuild = resolved;
+              usedCustomRoute = true;
+            }
+          }
+        }
+
+        rebuildRoute(stopsToBuild, false);
+        const { customCamApplied } = applySettingsFromHash(h, true);
+        if (usedCustomRoute) {
+          const label = stopsToBuild.map((s) => s.iata || s.code).join(' → ');
+          showToast(`🔗 Wczytano udostępnioną trasę: ${label}`, 3200);
+        }
+        return { usedCustomRoute, customCamApplied };
+      }
+
+      function resolvePendingHashRoute() {
+        if (!pendingHashRoute || !pendingHashRoute.route) return false;
+        const h = pendingHashRoute;
+        pendingHashRoute = null;
+        const resolved = h.route.map((c) => airportsByCode.get(c)).filter(Boolean);
+        if (resolved.length >= 2) {
+          rebuildRoute(resolved, !h.cam);
+          applySettingsFromHash(h, false);
+          const label = resolved.map((s) => s.iata || s.code).join(' → ');
+          showToast(`🔗 Wczytano udostępnioną trasę: ${label}`, 3200);
+          return true;
+        }
+        return false;
+      }
+
+      window.addEventListener('hashchange', () => {
+        if (isWritingHash) return;
+        const h = parseHashState(window.location.hash);
+        if (!h) return;
+        if (h.route) {
+          const resolved = h.route.map((c) => airportsByCode.get(c)).filter(Boolean);
+          if (resolved.length >= 2) {
+            rebuildRoute(resolved, !h.cam);
+            const label = resolved.map((s) => s.iata || s.code).join(' → ');
+            showToast(`🔗 Zastosowano trasę z linku: ${label}`);
+          } else {
+            pendingHashRoute = h;
+          }
+        }
+        applySettingsFromHash(h, false);
+      });
+
+      async function copyShareLink() {
+        const url = syncUrlHash(true);
+        let copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+            copied = true;
+          }
+        } catch (_) {
+          copied = false;
+        }
+        if (!copied) {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            copied = document.execCommand('copy');
+            document.body.removeChild(ta);
+          } catch (_) {
+            copied = false;
+          }
+        }
+        const codes = activeStops.map((s) => s.iata || s.code).join(' → ');
+        showToast(
+          copied
+            ? `🔗 Skopiowano link do schowka (${codes})`
+            : `🔗 Zaktualizowano link w pasku adresu (${codes})`,
+          3000
+        );
+        return { url, copied };
+      }
+
+      btnShare.addEventListener('click', () => {
+        copyShareLink();
+      });
+
+      // --- High-Res HUD-less Photo Mode ---
+      function setResolution(resKey) {
+        if (!['1x', '2k', '4k'].includes(resKey)) return;
+        photoRes = resKey;
+        resBtns.forEach((b) => b.classList.toggle('active', b.dataset.photoRes === photoRes));
+      }
+
+      function enterPhotoMode() {
+        if (photoMode) return;
+        hideIntro();
+        if (!routeDrawer.classList.contains('closed')) closeRouteDrawer();
+        wasPlayingBeforePhoto = isPlaying;
+        isPlaying = false;
+        btnPlay.textContent = '▶ Wznów';
+        document.getElementById('live-dot').style.background = '#f59e0b';
+        photoMode = true;
+        document.body.classList.add('photo-mode');
+        photoBar.classList.remove('closed');
+        btnPhoto.classList.add('active');
+        showToast('📷 Tryb zdjęć — wykadruj ujęcie i kliknij Zapisz PNG (Enter / Esc)', 2800);
+      }
+
+      function exitPhotoMode() {
+        if (!photoMode) return;
+        photoMode = false;
+        document.body.classList.remove('photo-mode');
+        photoBar.classList.add('closed');
+        btnPhoto.classList.remove('active');
+        if (wasPlayingBeforePhoto) {
+          isPlaying = true;
+          btnPlay.textContent = '❚❚ Pauza';
+          document.getElementById('live-dot').style.background = '#34d399';
+        }
+      }
+
+      function togglePhotoMode() {
+        if (photoMode) exitPhotoMode();
+        else enterPhotoMode();
+      }
+
+      function stepFrame(deltaSec) {
+        if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) return;
+        const dur = Math.max(0.1, TOTAL_DURATION);
+        let nextT = (simTime + deltaSec) % dur;
+        if (nextT < 0) nextT += dur;
+        seek(nextT);
+        const st = applyState(simTime, 0, false);
+        updateHUD(st);
+      }
+
+      function computeCaptureDims(resKey) {
+        const vw = Math.max(1, window.innerWidth);
+        const vh = Math.max(1, window.innerHeight);
+        const aspect = vw / vh;
+        const hwMax = Math.min(renderer.capabilities.maxTextureSize || 4096, mobile ? 2560 : 4096);
+
+        let targetLong;
+        if (resKey === '1x') {
+          targetLong = Math.min(hwMax, Math.round(Math.max(vw, vh) * PR));
+        } else if (resKey === '2k') {
+          targetLong = Math.min(hwMax, 2560);
+        } else {
+          targetLong = Math.min(hwMax, 3840);
+        }
+
+        let outW, outH;
+        if (aspect >= 1) {
+          outW = targetLong;
+          outH = Math.max(2, Math.round(targetLong / aspect));
+        } else {
+          outH = targetLong;
+          outW = Math.max(2, Math.round(targetLong * aspect));
+        }
+        // Keep even pixel dimensions for crisp video/image tools
+        outW = Math.max(2, outW - (outW % 2));
+        outH = Math.max(2, outH - (outH % 2));
+        return { outW, outH };
+      }
+
+      function triggerShutterFlash() {
+        photoFlash.classList.add('flash');
+        void photoFlash.offsetWidth;
+        requestAnimationFrame(() => {
+          photoFlash.classList.remove('flash');
+        });
+      }
+
+      function capturePng(resOverride = null, triggerDownload = true) {
+        const resKey = resOverride || photoRes;
+        let { outW, outH } = computeCaptureDims(resKey);
+        let dataUrl = '';
+
+        const renderAt = (w, h) => {
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setPixelRatio(1);
+          renderer.setSize(w, h, false);
+          composer.setPixelRatio(1);
+          composer.setSize(w, h);
+          starUniforms.uPixelRatio.value = w / Math.max(1, window.innerWidth);
+          composer.render(0);
+          return renderer.domElement.toDataURL('image/png');
+        };
+
+        try {
+          dataUrl = renderAt(outW, outH);
+        } catch (_) {
+          // Graceful fallback to 2K / viewport size if GPU memory is tight
+          const fb = computeCaptureDims(resKey === '4k' ? '2k' : '1x');
+          outW = fb.outW;
+          outH = fb.outH;
+          dataUrl = renderAt(outW, outH);
+        } finally {
+          renderer.setPixelRatio(PR);
+          composer.setPixelRatio(PR);
+          resize();
+          composer.render(0);
+        }
+
+        triggerShutterFlash();
+
+        const routeSlug = activeStops
+          .map((s) => (s.iata || s.code || 'HUB').replace(/[^A-Z0-9]/gi, ''))
+          .slice(0, 6)
+          .join('-');
+        const resTag = resKey === '4k' ? '4K' : (resKey === '2k' ? '2K' : 'HD');
+        const filename = `podniebny-dzwig-${routeSlug || 'trasa'}-${resTag}.png`;
+
+        if (triggerDownload && dataUrl) {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+
+        showToast(`📸 Zapisano zdjęcie ${outW}×${outH} PNG (${resTag})`, 3000);
+        return { width: outW, height: outH, filename, resKey, dataUrlLength: dataUrl.length, dataUrlPrefix: dataUrl.slice(0, 32) };
+      }
+
+      resBtns.forEach((b) => {
+        b.addEventListener('click', () => setResolution(b.dataset.photoRes));
+      });
+      btnPhoto.addEventListener('click', togglePhotoMode);
+      btnPhotoExit.addEventListener('click', exitPhotoMode);
+      btnPhotoPrev.addEventListener('click', () => stepFrame(-0.2));
+      btnPhotoNext.addEventListener('click', () => stepFrame(0.2));
+      btnPhotoSnap.addEventListener('click', () => capturePng());
+
+      return {
+        bootFromHash,
+        resolvePendingHashRoute,
+        parseHashState,
+        syncUrlHash,
+        getShareUrl,
+        copyShareLink,
+        enterPhotoMode,
+        exitPhotoMode,
+        togglePhotoMode,
+        isPhotoMode: () => photoMode,
+        setResolution,
+        getResolution: () => photoRes,
+        stepFrame,
+        capturePng,
+        showToast
+      };
+    }
+
+    const sharePhotoCtrl = createShareAndPhotoController();
+    window.__shareAndPhoto = sharePhotoCtrl;
+
+    // -------------------------------------------------------------------------
     // 12. Main Render Loop (120 Hz Substeps + Dynamic Shadow Frustum + FPS Guard)
     // -------------------------------------------------------------------------
-    rebuildRoute(DEFAULT_STOPS, false);
+    const bootHashInfo = sharePhotoCtrl.bootFromHash();
 
-    // Cinematic opening fly-in from high orbit down to globe overview
-    camTransition = {
-      startPos: initialCamDir.clone().multiplyScalar(21.5),
-      startTarget: new THREE.Vector3(0, 0.25, 0),
-      endPos: CAM_PRESETS.globe.pos.clone(),
-      endTarget: CAM_PRESETS.globe.target.clone(),
-      progress: 0,
-      duration: 2.6
-    };
+    // Cinematic opening fly-in from high orbit down to globe overview (skip if shared URL picks a camera mode)
+    if (!bootHashInfo.customCamApplied) {
+      camTransition = {
+        startPos: initialCamDir.clone().multiplyScalar(21.5),
+        startTarget: new THREE.Vector3(0, 0.25, 0),
+        endPos: CAM_PRESETS.globe.pos.clone(),
+        endTarget: CAM_PRESETS.globe.target.clone(),
+        progress: 0,
+        duration: 2.6
+      };
+    }
 
     let lastTime = performance.now();
     let fpsAcc = 0;
