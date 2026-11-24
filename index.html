@@ -3502,22 +3502,29 @@
       trimRing.receiveShadow = true;
       g.add(trimRing);
 
-      // Animated ocean wave wake ripples hugging Earth's curvature around the offshore rig
-      const wakeGeo = new THREE.RingGeometry(0.40, 1.15, 56, 6);
+      routeGroup.add(g);
+
+      // Realistic scale-independent ocean waves & foam tightly hugging the hexagonal hull (strictly at sea)
+      const rigBaseR = 0.445 * scale;
+      const wakeBand = 0.22; // Fixed compact world-space band — never scales with crane size
+      const innerR = Math.max(0.04, rigBaseR * 0.80);
+      const outerR = rigBaseR + wakeBand;
+      const wakeGeo = new THREE.RingGeometry(innerR, outerR, 72, 8);
       wakeGeo.rotateX(-Math.PI / 2);
       const wPos = wakeGeo.attributes.position;
       for (let i = 0; i < wPos.count; i++) {
         const vx = wPos.getX(i);
         const vz = wPos.getZ(i);
-        const r2 = (vx * vx + vz * vz) * scale;
-        wPos.setY(i, 0.014 - r2 / (2.0 * EARTH_RADIUS));
+        const r2 = vx * vx + vz * vz;
+        wPos.setY(i, 0.008 - r2 / (2.0 * EARTH_RADIUS));
       }
       wakeGeo.computeVertexNormals();
 
       const wakeUniforms = {
         uTime: { value: 0 },
         uSunDir: { value: sunDir.clone() },
-        uAccent: { value: new THREE.Color(accentHex) },
+        uRigR: { value: rigBaseR },
+        uBand: { value: wakeBand },
         tSpec: { value: tSpec }
       };
       rigWakeUniformsList.push(wakeUniforms);
@@ -3541,40 +3548,101 @@
           #include <logdepthbuf_pars_fragment>
           uniform float uTime;
           uniform vec3 uSunDir;
-          uniform vec3 uAccent;
+          uniform float uRigR;
+          uniform float uBand;
           uniform sampler2D tSpec;
           varying vec3 vLocalPos;
           varying vec3 vWorldPos;
+
+          float hash21(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+          }
+
+          float vnoise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            float a = hash21(i);
+            float b = hash21(i + vec2(1.0, 0.0));
+            float c = hash21(i + vec2(0.0, 1.0));
+            float d = hash21(i + vec2(1.0, 1.0));
+            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+          }
+
+          float fbm(vec2 p) {
+            float v = 0.0;
+            float a = 0.55;
+            mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+            for (int i = 0; i < 3; i++) {
+              v += a * vnoise(p);
+              p = rot * p * 2.08 + vec2(13.1, 7.7);
+              a *= 0.48;
+            }
+            return v;
+          }
+
+          // Exact distance matching Three.js 6-sided CylinderGeometry (vertices along ±Z)
+          float hexDist(vec2 p) {
+            p = abs(p);
+            return max(p.x * 1.1547005, (p.x * 0.5 + p.y * 0.8660254) * 1.1547005);
+          }
+
           void main() {
-            // Convert fragment world position to Earth equirectangular UV and mask strictly to sea/ocean
+            // Strictly mask to sea/ocean water via NASA ocean mask
             vec3 dir = normalize(vWorldPos);
             float uEarth = fract(atan(dir.z, -dir.x) / 6.28318530718);
             float vEarth = 1.0 - acos(clamp(dir.y, -1.0, 1.0)) / 3.14159265359;
             float waterRaw = texture2D(tSpec, vec2(uEarth, clamp(vEarth, 0.002, 0.998))).r;
-            float waterMask = smoothstep(0.35, 0.72, waterRaw);
+            float waterMask = smoothstep(0.38, 0.75, waterRaw);
             if (waterMask < 0.01) discard;
 
-            float r = length(vLocalPos.xz);
-            float t = clamp((r - 0.40) / 0.75, 0.0, 1.0);
-            float ang = atan(vLocalPos.z, vLocalPos.x);
+            // Constant world-space distance outward from the 6 hexagonal walls of the caisson
+            float d = hexDist(vLocalPos.xz) - uRigR;
+            if (d < -0.008 || d > uBand) discard;
+            float t = clamp(d / uBand, 0.0, 1.0);
 
-            // Concentric expanding ocean wave crests + organic shoreline chop
-            float chop = sin(ang * 12.0 + uTime * 1.1) * 0.09 + sin(ang * 7.0 - uTime * 0.75) * 0.07;
-            float wave = 0.5 + 0.5 * sin((t + chop) * 20.0 - uTime * 2.5);
-            float crest = pow(wave, 3.8);
-            float innerFoam = exp(-t * 9.0) * (0.6 + 0.4 * sin(ang * 18.0 + uTime * 2.2));
+            // World-scale organic ocean turbulence (constant feature scale regardless of rig size)
+            vec2 wp2 = vLocalPos.xz * 26.0;
+            float n1 = fbm(wp2 + vec2(uTime * 0.35, -uTime * 0.25));
+            float n2 = fbm(wp2 * 2.3 - vec2(uTime * 0.52, uTime * 0.41) + n1 * 1.6);
 
-            float env = smoothstep(0.0, 0.08, t) * pow(1.0 - t, 1.85);
-            float strength = clamp(crest * env * 0.68 + innerFoam * 0.42, 0.0, 1.0) * waterMask;
-            if (strength < 0.012) discard;
+            // 1. Tight frothy whitecap foam collar breaking right against the hexagonal steel hull
+            float collar = exp(-max(0.0, d) * 44.0) * smoothstep(0.24, 0.72, n2 * 0.85 + 0.22);
 
-            float ndotl = dot(dir, normalize(uSunDir));
-            float dayFade = smoothstep(-0.18, 0.32, ndotl);
-            vec3 dayCol = vec3(0.76, 0.93, 1.0);
-            vec3 nightCol = mix(vec3(0.14, 0.38, 0.58), uAccent * 0.72, 0.35);
+            // 2. Aerated turquoise churned water immediately surrounding the platform
+            float churn = exp(-max(0.0, d) * 14.5) * (0.45 + 0.55 * n1);
+
+            // 3. Fine, irregular broken ocean wavelets radiating outward (domain-warped, never uniform rings)
+            float phase = d * 95.0 - uTime * 2.4 + n1 * 5.2 + n2 * 2.4;
+            float wavelet = pow(0.5 + 0.5 * sin(phase), 4.2);
+            float patchBreak = smoothstep(0.36, 0.76, n1 * 0.65 + n2 * 0.55);
+            float waveFade = smoothstep(0.0, 0.08, t) * pow(1.0 - t, 2.1);
+            float brokenCrests = wavelet * patchBreak * waveFade;
+
+            float foamAmount = clamp(collar * 0.95 + brokenCrests * 0.62, 0.0, 1.0);
+            float totalAlpha = clamp(foamAmount * 0.78 + churn * 0.34, 0.0, 1.0) * waterMask * (1.0 - smoothstep(0.85, 1.0, t));
+            if (totalAlpha < 0.012) discard;
+
+            // Realistic sun & sky shading (sunlit turquoise/whitecap by day, dark subtle sea sheen at night)
+            vec3 L = normalize(uSunDir);
+            vec3 V = normalize(cameraPosition - vWorldPos);
+            float ndotl = dot(dir, L);
+            float dayFade = smoothstep(-0.14, 0.28, ndotl);
+
+            // Subtle Blinn-Phong specular glint off breaking wave facets
+            vec3 H = normalize(L + V);
+            float glint = pow(max(dot(dir, H), 0.0), 42.0) * (0.35 + 0.65 * brokenCrests) * dayFade * 0.55;
+
+            vec3 turquoiseDay = vec3(0.14, 0.48, 0.58);
+            vec3 foamDay      = vec3(0.90, 0.96, 1.00);
+            vec3 dayCol = mix(turquoiseDay, foamDay, clamp(foamAmount * 1.25, 0.0, 1.0)) + vec3(1.0, 0.97, 0.9) * glint;
+
+            vec3 nightCol = mix(vec3(0.03, 0.08, 0.14), vec3(0.14, 0.22, 0.30), foamAmount);
             vec3 col = mix(nightCol, dayCol, dayFade);
 
-            gl_FragColor = vec4(col, strength * (0.28 + 0.24 * dayFade));
+            gl_FragColor = vec4(col, totalAlpha * (0.28 + 0.58 * dayFade));
             #include <logdepthbuf_fragment>
           }
         `,
@@ -3583,10 +3651,11 @@
         side: THREE.DoubleSide
       });
 
-      const wakeMesh = new THREE.Mesh(wakeGeo, wakeMat);
-      g.add(wakeMesh);
-
-      routeGroup.add(g);
+      const wakeGroup = new THREE.Group();
+      wakeGroup.position.copy(normal.clone().multiplyScalar(EARTH_RADIUS));
+      wakeGroup.quaternion.copy(quat);
+      wakeGroup.add(new THREE.Mesh(wakeGeo, wakeMat));
+      routeGroup.add(wakeGroup);
     }
 
     // -------------------------------------------------------------------------
