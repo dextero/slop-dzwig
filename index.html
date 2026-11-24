@@ -250,6 +250,58 @@
       color: #f8fafc;
     }
 
+    .random-route-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.26);
+    }
+
+    .random-route-bar label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #bae6fd;
+      white-space: nowrap;
+    }
+
+    .random-route-bar select {
+      flex: 1;
+      min-width: 0;
+      font-size: 11px;
+      font-weight: 600;
+      color: #f8fafc;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 197, 255, 0.30);
+      border-radius: 7px;
+      padding: 4px 7px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .random-route-bar select:focus {
+      border-color: rgba(56, 189, 248, 0.72);
+    }
+
+    .random-roll-btn {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 7px;
+      background: rgba(56, 189, 248, 0.22);
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      color: #e0f2fe;
+      white-space: nowrap;
+    }
+
+    .random-roll-btn:hover {
+      background: rgba(56, 189, 248, 0.35);
+      border-color: rgba(125, 211, 252, 0.85);
+      color: #ffffff;
+    }
+
     .route-stops-list {
       overflow-y: auto;
       max-height: 210px;
@@ -1478,7 +1530,7 @@
     <button id="btn-cam-exit" class="cam-exit-btn" title="Powrót do swobodnego widoku (Esc)">✕</button>
   </div>
 
-  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • 1–4 = kamery • P = zdjęcie • M = dźwięk</div>
+  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • 1–4 = kamery • R = losuj • P = zdjęcie • M = dźwięk</div>
 
   <div id="route-drawer" class="closed" aria-label="Konfigurator trasy">
     <div class="route-drawer-head">
@@ -1495,6 +1547,21 @@
       <button class="preset-chip" data-preset="SFO,CAI,DXB,SYD">Cuda świata (4)</button>
       <button class="preset-chip" data-preset="GDN,WAW,KRK">Polska (Żuraw → PKiN → Wawel)</button>
       <button class="preset-chip" data-preset="MCO,ZRH,KTM,NZWD">Rakieta → Alpy → Everest → Antarktyda</button>
+    </div>
+    <div class="random-route-bar">
+      <label for="random-route-count">🎲 Losowa:</label>
+      <select id="random-route-count" aria-label="Liczba lotnisk w losowej trasie">
+        <option value="any" selected>3–10 lotnisk (losowo)</option>
+        <option value="3">3 lotniska</option>
+        <option value="4">4 lotniska</option>
+        <option value="5">5 lotnisk</option>
+        <option value="6">6 lotnisk</option>
+        <option value="7">7 lotnisk</option>
+        <option value="8">8 lotnisk</option>
+        <option value="9">9 lotnisk</option>
+        <option value="10">10 lotnisk</option>
+      </select>
+      <button id="btn-drawer-random" class="random-roll-btn" type="button" title="Wylosuj nową trasę z 3–10 lotnisk">🎲 Losuj</button>
     </div>
     <div class="route-stops-list" id="route-stops-list"></div>
     <div class="airport-search-wrap">
@@ -1557,6 +1624,7 @@
     <button id="btn-speed">1× Prędkość</button>
     <button id="btn-sky" title="Pokaż/ukryj gwiazdozbiory i podpisy obiektów na niebie">✦ Niebo</button>
     <button id="btn-route" title="Konfiguruj trasę i lotniska">✎ Trasa</button>
+    <button id="btn-random-route" title="Wylosuj losową trasę z 3–10 lotnisk (skrót: R)">🎲 Losowa</button>
     <button id="btn-share" title="Skopiuj link URL do bieżącej trasy i ustawień">🔗 Udostępnij</button>
     <button id="btn-photo" title="Tryb zdjęć bez HUD i zapis 4K PNG (klawisz P)">📷 Zdjęcie</button>
     <button id="btn-manual" title="Przejmij ręczne sterowanie dźwigiem: WASD + QE + Spacja (klawisz G)">🎮 Ręczny</button>
@@ -13609,7 +13677,9 @@
       introBanner.querySelector('h1').textContent = activeStops.map((s) => s.displayCity).join(' → ');
       introBanner.querySelector('p').textContent = M === 1
         ? 'Gigantyczny dźwig ze środka trasy przenosi samolot bez jednego kilometra lotu.'
-        : `${M} gigantyczne dźwigi ze środków odcinków przenoszą samolot przez świat.`;
+        : M >= 5
+          ? `${M} gigantycznych dźwigów ze środków odcinków przenosi samolot przez świat.`
+          : `${M} gigantyczne dźwigi ze środków odcinków przenoszą samolot przez świat.`;
 
       seek(0);
       updateHUD(applyState(0, 0.016, false));
@@ -13618,8 +13688,11 @@
 
     // Route Configurator Drawer UI
     const btnRoute = document.getElementById('btn-route');
+    const btnRandomRoute = document.getElementById('btn-random-route');
     const routeDrawer = document.getElementById('route-drawer');
     const btnCloseRoute = document.getElementById('btn-close-route');
+    const randomCountSelect = document.getElementById('random-route-count');
+    const btnDrawerRandom = document.getElementById('btn-drawer-random');
     const draftListEl = document.getElementById('route-stops-list');
     const searchInput = document.getElementById('airport-search');
     const searchResultsEl = document.getElementById('airport-results');
@@ -13635,6 +13708,146 @@
       const km = Math.round(alpha * 6371);
       const deg = alpha * 180 / Math.PI;
       return { km, deg, alpha };
+    }
+
+    // Smart Random Route Generator (3-10 unique, geometrically valid airports with balanced global & landmark diversity)
+    let _randomPoolCacheLen = -1;
+    let _randomHubBuckets = [];
+    let _randomGlobalPool = [];
+
+    function ensureRandomPools() {
+      if (_randomPoolCacheLen === allAirports.length && _randomGlobalPool.length > 0) return;
+      _randomPoolCacheLen = allAirports.length;
+      const iataPool = allAirports.filter((a) => !!a.iata);
+      _randomGlobalPool = iataPool.length >= 25 ? iataPool : allAirports.slice();
+
+      const byHub = new Map();
+      for (const ap of _randomGlobalPool) {
+        const hub = matchLandmarkHub(ap.lat, ap.lon);
+        if (!hub) continue;
+        let list = byHub.get(hub.id);
+        if (!list) {
+          list = [];
+          byHub.set(hub.id, list);
+        }
+        list.push(ap);
+      }
+      _randomHubBuckets = Array.from(byHub.entries()).map(([hubId, list]) => ({ hubId, list }));
+    }
+
+    function generateRandomRoute(requestedCount = null) {
+      ensureRandomPools();
+      const targetCount = (Number.isFinite(requestedCount) && requestedCount >= 3 && requestedCount <= 10)
+        ? Math.round(requestedCount)
+        : (3 + Math.floor(Math.random() * 8));
+
+      const drawCandidate = (usedCodes, usedHubs, allowAnyHub) => {
+        const useLandmark = _randomHubBuckets.length > 0 && Math.random() < 0.80;
+        if (useLandmark) {
+          for (let t = 0; t < 16; t++) {
+            const b = _randomHubBuckets[Math.floor(Math.random() * _randomHubBuckets.length)];
+            if (!allowAnyHub && usedHubs.has(b.hubId)) continue;
+            const ap = b.list[Math.floor(Math.random() * b.list.length)];
+            if (!usedCodes.has(ap.code)) return { ap, hubId: b.hubId };
+          }
+        }
+        for (let t = 0; t < 24; t++) {
+          const ap = _randomGlobalPool[Math.floor(Math.random() * _randomGlobalPool.length)];
+          if (usedCodes.has(ap.code)) continue;
+          const hub = matchLandmarkHub(ap.lat, ap.lon);
+          const hubId = hub ? hub.id : null;
+          if (!allowAnyHub && hubId && usedHubs.has(hubId)) continue;
+          return { ap, hubId };
+        }
+        return null;
+      };
+
+      const chosen = [];
+      const usedCodes = new Set();
+      const usedHubs = new Set();
+
+      const first = drawCandidate(usedCodes, usedHubs, false) || { ap: _randomGlobalPool[0], hubId: null };
+      chosen.push(first.ap);
+      usedCodes.add(first.ap.code);
+      if (first.hubId) usedHubs.add(first.hubId);
+
+      while (chosen.length < targetCount) {
+        const prev = chosen[chosen.length - 1];
+        let picked = null;
+
+        // Tier 1: scenic leg spacing (12°–85° preferred, up to 128°, well-separated from all existing stops)
+        let bestScore = -Infinity;
+        let validFound = 0;
+        for (let attempt = 0; attempt < 90 && validFound < 10; attempt++) {
+          const cand = drawCandidate(usedCodes, usedHubs, false);
+          if (!cand) continue;
+          const { km, deg } = legDistanceInfo(prev, cand.ap);
+          if (km < 420 || deg > 128) continue;
+          let tooClose = false;
+          for (let j = 0; j < chosen.length - 1; j++) {
+            if (legDistanceInfo(chosen[j], cand.ap).km < 340) { tooClose = true; break; }
+          }
+          if (tooClose) continue;
+          validFound++;
+          const inScenicBand = (deg >= 12 && deg <= 82) ? 1.0 : 0.35;
+          const score = inScenicBand + (cand.hubId ? 0.25 : 0) + Math.random() * 0.45;
+          if (score > bestScore) {
+            bestScore = score;
+            picked = cand;
+          }
+        }
+
+        // Tier 2: relaxed valid fallback guaranteeing validateDraft() passes cleanly
+        if (!picked) {
+          for (let attempt = 0; attempt < 180; attempt++) {
+            const cand = drawCandidate(usedCodes, usedHubs, attempt > 90);
+            if (!cand) continue;
+            const { km, deg } = legDistanceInfo(prev, cand.ap);
+            if (km < 180 || deg > 148) continue;
+            let overlap = false;
+            for (let j = 0; j < chosen.length - 1; j++) {
+              if (legDistanceInfo(chosen[j], cand.ap).km < 160) { overlap = true; break; }
+            }
+            if (overlap) continue;
+            picked = cand;
+            break;
+          }
+        }
+
+        if (!picked) break;
+        chosen.push(picked.ap);
+        usedCodes.add(picked.ap.code);
+        if (picked.hubId) usedHubs.add(picked.hubId);
+      }
+
+      return chosen;
+    }
+
+    function readRandomCountSelection() {
+      if (!randomCountSelect || randomCountSelect.value === 'any') return null;
+      const n = parseInt(randomCountSelect.value, 10);
+      return Number.isFinite(n) ? THREE.MathUtils.clamp(n, 3, 10) : null;
+    }
+
+    function formatStopsCountPl(n) {
+      return (n >= 2 && n <= 4) ? `${n} lotniska` : `${n} lotnisk`;
+    }
+
+    function applyRandomRoute(requestedCount = null) {
+      const stops = generateRandomRoute(requestedCount);
+      if (stops.length < 2) return stops;
+      hideIntro();
+      rebuildRoute(stops, true);
+      if (!routeDrawer.classList.contains('closed')) {
+        draftStops = activeStops.map((s) => ({ ...s }));
+        renderDraftList();
+      }
+      if (typeof sharePhotoCtrl !== 'undefined') {
+        sharePhotoCtrl.syncUrlHash(false);
+        const codes = stops.map((s) => s.code).join(' → ');
+        sharePhotoCtrl.showToast(`🎲 Losowa trasa (${formatStopsCountPl(stops.length)}): ${codes}`, 3400);
+      }
+      return stops;
     }
 
     function validateDraft() {
@@ -13736,6 +13949,14 @@
       if (routeDrawer.classList.contains('closed')) openRouteDrawer();
       else closeRouteDrawer();
     });
+    btnRandomRoute.addEventListener('click', () => {
+      applyRandomRoute(readRandomCountSelection());
+    });
+    btnDrawerRandom.addEventListener('click', () => {
+      draftStops = generateRandomRoute(readRandomCountSelection());
+      renderDraftList();
+      draftListEl.scrollTop = 0;
+    });
     btnCloseRoute.addEventListener('click', closeRouteDrawer);
     searchInput.addEventListener('input', (e) => renderSearchResults(e.target.value));
     routeDrawer.querySelectorAll('.preset-chip').forEach((ch) => {
@@ -13757,6 +13978,11 @@
       if (stops.length < 2) throw new Error('Invalid airport codes: ' + JSON.stringify(codes));
       rebuildRoute(stops, true);
       return window.__getRouteInfo();
+    };
+
+    window.__generateRandomRoute = (count = null, apply = true) => {
+      const stops = apply ? applyRandomRoute(count) : generateRandomRoute(count);
+      return apply ? window.__getRouteInfo() : stops.map((s) => s.code);
     };
 
     window.__getRouteInfo = () => {
@@ -14471,6 +14697,17 @@
         e.preventDefault();
         if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode()) return;
         if (typeof manualCtrl !== 'undefined') manualCtrl.toggle();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (typeof sharePhotoCtrl !== 'undefined' && sharePhotoCtrl.isPhotoMode()) return;
+        if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) return;
+        if (!routeDrawer.classList.contains('closed')) {
+          draftStops = generateRandomRoute(readRandomCountSelection());
+          renderDraftList();
+          draftListEl.scrollTop = 0;
+        } else {
+          applyRandomRoute(readRandomCountSelection());
+        }
       } else if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         if (typeof sharePhotoCtrl !== 'undefined') sharePhotoCtrl.togglePhotoMode();
