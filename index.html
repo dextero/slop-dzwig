@@ -687,6 +687,71 @@
       50% { height: 10px; }
     }
 
+    #cam-mode-badge {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: rgba(7, 13, 26, 0.86);
+      border: 1px solid rgba(56, 189, 248, 0.42);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: #e0f2fe;
+      z-index: 15;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: nowrap;
+    }
+
+    #cam-mode-badge.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #cam-mode-badge .rec-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+      animation: recBlink 1.1s ease-in-out infinite;
+    }
+
+    @keyframes recBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    #cam-mode-badge .cam-sub {
+      color: #93c5fd;
+      font-weight: 500;
+    }
+
+    #cam-mode-badge .cam-exit-btn {
+      padding: 2px 7px;
+      font-size: 10px;
+      border-radius: 999px;
+      margin-left: 2px;
+    }
+
+    @media (max-width: 1180px) {
+      #cam-mode-badge {
+        top: auto;
+        bottom: 74px;
+      }
+    }
+
     .hint-badge {
       position: fixed;
       top: 16px;
@@ -737,9 +802,9 @@
       background: rgba(255, 255, 255, 0.06);
       color: var(--text);
       font-family: inherit;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
-      padding: 6px 10px;
+      padding: 5.5px 8.5px;
       border-radius: 10px;
       cursor: pointer;
       transition: background 0.18s ease, border-color 0.18s ease, transform 0.1s ease;
@@ -871,7 +936,14 @@
     </div>
   </div>
 
-  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • M = dźwięk • Najedź na niebo = nazwy obiektów</div>
+  <div id="cam-mode-badge" aria-live="polite">
+    <span class="rec-dot"></span>
+    <span id="cam-mode-title">KAMERA AKCJI</span>
+    <span class="cam-sub" id="cam-mode-sub"></span>
+    <button id="btn-cam-exit" class="cam-exit-btn" title="Powrót do swobodnego widoku (Esc)">✕</button>
+  </div>
+
+  <div class="hint-badge">Przeciągnij = obrót • Scroll = zoom • 1–4 = kamery • M = dźwięk</div>
 
   <div id="route-drawer" class="closed" aria-label="Konfigurator trasy">
     <div class="route-drawer-head">
@@ -901,7 +973,6 @@
     <button id="btn-play" class="primary">❚❚ Pauza</button>
     <button id="btn-restart">↺ Reset</button>
     <button id="btn-speed">1× Prędkość</button>
-    <button id="btn-follow">✈ Śledź</button>
     <button id="btn-sky" title="Pokaż/ukryj gwiazdozbiory i podpisy obiektów na niebie">✦ Niebo</button>
     <button id="btn-route" title="Konfiguruj trasę i lotniska">✎ Trasa</button>
     <button id="btn-audio" class="audio-prompt" title="Włącz/wyłącz dźwięk proceduralny (skrót: M)">
@@ -909,6 +980,12 @@
       <span>Dźwięk</span>
       <span class="eq-bars" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
+    <div class="ctrl-sep"></div>
+    <button id="btn-follow" title="Kamera orbitalna śledząca samolot">✈ Śledź</button>
+    <button class="cam-mode-btn" data-cam-mode="cockpit" title="Kamera z kokpitu / zawiesia samolotu (klawisz 1)">🛩 Kokpit</button>
+    <button class="cam-mode-btn" data-cam-mode="cabin" title="Widok z kabiny operatora na szczycie dźwigu (klawisz 2)">🏗 Kabina</button>
+    <button class="cam-mode-btn" data-cam-mode="hook" title="Widok z wózka i haka pionowo w dół (klawisz 3)">🪝 Hak</button>
+    <button class="cam-mode-btn" data-cam-mode="director" title="Automatyczny reżyser kinowy dopasowany do faz misji (klawisz 4)">🎬 Reżyser</button>
     <div class="ctrl-sep"></div>
     <button data-cam="globe" class="active">Glob</button>
     <div id="stop-cam-buttons" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
@@ -4537,6 +4614,72 @@
     let stopPillEls = [];
     let elCranePill = document.getElementById('pill-crane');
 
+    const camModeBadge = document.getElementById('cam-mode-badge');
+    const camModeTitleEl = document.getElementById('cam-mode-title');
+    const camModeSubEl = document.getElementById('cam-mode-sub');
+    const btnCamExit = document.getElementById('btn-cam-exit');
+    const camModeBtns = Array.from(document.querySelectorAll('.cam-mode-btn'));
+
+    let camMode = 'free'; // 'free' | 'cockpit' | 'cabin' | 'hook' | 'director'
+    let targetFov = 43;
+    let camSnapNext = false;
+    let lastDirectorCutKey = '';
+    let currentDirectorShot = '';
+
+    const CAM_MODE_LABELS = {
+      cockpit: '🛩 KOKPIT / ZAWIESIE',
+      cabin: '🏗 KABINA DŹWIGU',
+      hook: '🪝 WIDOK Z HAKA',
+      director: '🎬 REŻYSER'
+    };
+
+    function syncCamModeUI(subText = '') {
+      camModeBtns.forEach((b) => {
+        b.classList.toggle('active', b.dataset.camMode === camMode);
+      });
+      if (camMode === 'free') {
+        camModeBadge.classList.remove('visible');
+      } else {
+        camModeTitleEl.textContent = CAM_MODE_LABELS[camMode] || 'KAMERA AKCJI';
+        camModeSubEl.textContent = subText ? `• ${subText}` : '';
+        camModeBadge.classList.add('visible');
+      }
+    }
+
+    function exitActionCamToFree(resetUp = true) {
+      if (camMode === 'free') return;
+      camMode = 'free';
+      targetFov = 43;
+      lastDirectorCutKey = '';
+      currentDirectorShot = '';
+      if (resetUp) camera.up.copy(UP);
+      controls.enabled = true;
+      syncCamModeUI();
+    }
+
+    function setCamMode(mode) {
+      if (mode === camMode && mode !== 'free') {
+        exitActionCamToFree(true);
+        return;
+      }
+      if (mode === 'free') {
+        exitActionCamToFree(true);
+        return;
+      }
+      hideIntro();
+      clearSkyHover();
+      followPlane = false;
+      btnFollow.classList.remove('active');
+      camTransition = null;
+      setActiveCamBtn(null);
+      camMode = mode;
+      camSnapNext = true;
+      lastDirectorCutKey = '';
+      currentDirectorShot = '';
+      controls.enabled = false;
+      syncCamModeUI();
+    }
+
     function setActiveCamBtn(name) {
       controlsBar.querySelectorAll('button[data-cam]').forEach((b) => {
         b.classList.toggle('active', b.dataset.cam === name);
@@ -4544,8 +4687,17 @@
     }
 
     controlsBar.addEventListener('click', (e) => {
+      const mb = e.target.closest('button[data-cam-mode]');
+      if (mb) {
+        setCamMode(mb.dataset.camMode);
+        return;
+      }
       const b = e.target.closest('button[data-cam]');
       if (b) flyToPreset(b.dataset.cam);
+    });
+
+    btnCamExit.addEventListener('click', () => {
+      flyToPreset('globe');
     });
 
     let followPlane = false;
@@ -4553,6 +4705,7 @@
       const preset = CAM_PRESETS[name];
       if (!preset) return;
       hideIntro();
+      exitActionCamToFree(true);
       followPlane = false;
       btnFollow.classList.remove('active');
       camTransition = {
@@ -4565,6 +4718,164 @@
       };
       setActiveCamBtn(name);
     }
+
+    // Scratch vectors for zero-allocation action camera frames
+    const _actPos = new THREE.Vector3();
+    const _actTarget = new THREE.Vector3();
+    const _actUp = new THREE.Vector3();
+    const _cNormal = new THREE.Vector3();
+    const _cFwd = new THREE.Vector3();
+    const _cRight = new THREE.Vector3();
+    const _cUp = new THREE.Vector3();
+    const _trolleyW = new THREE.Vector3();
+    const _hookW = new THREE.Vector3();
+
+    function pickDirectorShot(state) {
+      const step = state.step || {};
+      const legIdx = Math.min(cranes.length - 1, step.legIdx ?? 0);
+      const cLabel = step.crane || `Dźwig ${legIdx + 1}`;
+      if (step.finale) return { shot: 'finale_orbit', cutKey: `fin|${step.stopIdx}`, sub: 'Finał • Fajerwerki' };
+      if (step.audioKind === 'attach') return { shot: 'macro_latch', cutKey: `att|${step.t0}`, sub: `Podpięcie • ${cLabel}` };
+      if (step.audioKind === 'lift') return { shot: 'hook', cutKey: `lift|${step.t0}`, sub: `Start z haka • ${cLabel}` };
+      if (step.audioKind === 'slew') {
+        const p = step.d > 0 ? THREE.MathUtils.clamp((simTime - step.t0) / step.d, 0, 1) : 0;
+        if (p < 0.36) return { shot: 'cabin', cutKey: `slew_cab|${step.t0}`, sub: `Kabina • ${cLabel}` };
+        if (p < 0.74) return { shot: 'cockpit', cutKey: `slew_cp|${step.t0}`, sub: 'Kokpit • Nad chmurami' };
+        return { shot: 'orbital_chase', cutKey: `slew_ch|${step.t0}`, sub: 'Pościg orbitalny' };
+      }
+      if (step.audioKind === 'detach') return { shot: 'macro_latch', cutKey: `det|${step.t0}`, sub: 'Odpięcie na płycie' };
+      if (state.S.att > 0 && step.to && (`h${legIdx + 1}` in step.to)) {
+        return { shot: 'touchdown_dolly', cutKey: `land|${step.t0}`, sub: 'Podejście do lądowania' };
+      }
+      if (step.to && (`h${legIdx + 1}` in step.to) && step.to[`h${legIdx + 1}`] <= effRestHookAlt + 0.02) {
+        return { shot: 'ground_hero', cutKey: `desc|${step.t0}`, sub: `Opuszczanie haka • ${cLabel}` };
+      }
+      if (step.t0 === 0) {
+        return { shot: 'ground_hero', cutKey: `ready|${step.t0}`, sub: 'Gotowość na płycie' };
+      }
+      return { shot: 'handoff_wide', cutKey: `ho|${step.t0}`, sub: 'Choreografia dźwigów' };
+    }
+
+    function computeActionShot(shotType, state, sec) {
+      const step = state.step || {};
+      const legIdx = Math.min(cranes.length - 1, Math.max(0, step.legIdx ?? 0));
+      const c = cranes[legIdx] || cranes[0];
+      const rs = Math.max(0.24, routeScale);
+      const stopIdx = Math.min(pads.length - 1, Math.max(0, step.stopIdx ?? 0));
+      const pad = pads[stopIdx] || pads[0];
+
+      if (shotType === 'cockpit') {
+        airplane.group.updateMatrixWorld(true);
+        airplane.group.localToWorld(_actPos.set(0.0, 0.34, -0.66));
+        airplane.group.localToWorld(_actTarget.set(0.0, -0.32, 1.45));
+        _cNormal.copy(airplane.group.position).normalize();
+        _cUp.set(0, 1, 0).applyQuaternion(airplane.group.quaternion).normalize();
+        _actUp.copy(_cNormal).lerp(_cUp, 0.45).normalize();
+        const city = activeStops[stopIdx]?.displayCity || '';
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 62, smooth: 13, minAlt: 0.05 * rs, sub: state.S.att ? `W powietrzu • ${step.crane}` : `Na płycie • ${city}` };
+      }
+
+      if (shotType === 'cabin' && c) {
+        c.slewGroup.updateMatrixWorld(true);
+        const cs = c.scale;
+        c.slewGroup.localToWorld(_actPos.set(0.22 * cs, 0.16 * cs, 0.28 * cs));
+        const a = state.S['a' + (legIdx + 1)];
+        c.trolleyWorld(a, _trolleyW);
+        const focusObj = state.S.att === legIdx + 1 ? airplane.group.position : c.hookGroup.position;
+        _actTarget.copy(focusObj).lerp(_trolleyW, 0.26);
+        _actUp.copy(c.normal);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 54, smooth: 9, minAlt: 0.08 * rs, sub: `Dźwig ${legIdx + 1} • Ramię ${(c.jibLength * 1274).toFixed(0)} km` };
+      }
+
+      if (shotType === 'hook' && c) {
+        const a = state.S['a' + (legIdx + 1)];
+        c.trolleyWorld(a, _trolleyW);
+        _hookW.copy(c.hookGroup.position);
+        _cUp.subVectors(_trolleyW, _hookW);
+        const ropeLen = Math.max(0.05, _cUp.length());
+        _cUp.divideScalar(ropeLen);
+        _cFwd.set(0, 0, 1).applyQuaternion(c.slewQuat(a));
+        _cFwd.addScaledVector(_cUp, -_cFwd.dot(_cUp));
+        if (_cFwd.lengthSq() < 1e-5) _cFwd.set(1, 0, 0);
+        _cFwd.normalize();
+        _cRight.crossVectors(_cFwd, _cUp).normalize();
+
+        const distUp = THREE.MathUtils.clamp(ropeLen * 0.48, 0.42 * rs, 1.45 * Math.max(0.45, rs));
+        _actPos.copy(_hookW)
+          .addScaledVector(_cUp, distUp)
+          .addScaledVector(_cRight, 0.17 * Math.max(0.35, rs))
+          .addScaledVector(_cFwd, -0.10 * Math.max(0.35, rs));
+        _actTarget.copy(_hookW).addScaledVector(_cUp, -0.18 * rs);
+        _actUp.copy(_cFwd);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 58, smooth: 11, minAlt: 0.06 * rs, sub: `Dźwig ${legIdx + 1} • Pionowe zawiesie` };
+      }
+
+      if (shotType === 'orbital_chase') {
+        airplane.group.updateMatrixWorld(true);
+        airplane.group.localToWorld(_actPos.set(0.72, 0.24, 0.88));
+        _actTarget.copy(airplane.group.position);
+        _actUp.copy(airplane.group.position).normalize();
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 46, smooth: 8, minAlt: 0.08 * rs, sub: 'Pościg orbitalny' };
+      }
+
+      if (shotType === 'macro_latch' && pad) {
+        const f = surfaceFrame(pad.normal);
+        const ang = (simTime - (step.t0 || 0)) * 0.65 + 0.6;
+        _actPos.copy(airplane.group.position)
+          .addScaledVector(f.east, Math.cos(ang) * 0.56 * rs)
+          .addScaledVector(f.north, Math.sin(ang) * 0.56 * rs)
+          .addScaledVector(pad.normal, 0.20 * rs);
+        _actTarget.copy(airplane.group.position).addScaledVector(pad.normal, 0.04 * rs);
+        _actUp.copy(pad.normal);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 38, smooth: 9, minAlt: 0.06 * rs, sub: 'Zbliżenie haka' };
+      }
+
+      if (shotType === 'ground_hero' && pad && c) {
+        const f = surfaceFrame(pad.normal);
+        const swayT = Math.sin(sec * 0.45) * 0.16 * rs;
+        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.26 * rs)
+          .addScaledVector(f.east, 0.72 * rs + swayT)
+          .addScaledVector(f.north, -0.78 * rs);
+        _actTarget.copy(airplane.group.position).lerp(c.hookGroup.position, 0.28);
+        _actUp.copy(pad.normal);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 44, smooth: 7, minAlt: 0.08 * rs, sub: 'Widok z płyty' };
+      }
+
+      if (shotType === 'touchdown_dolly' && pad) {
+        const f = surfaceFrame(pad.normal);
+        const swayT = Math.sin(sec * 0.5) * 0.14 * rs;
+        _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 0.28 * rs)
+          .addScaledVector(f.east, -0.76 * rs + swayT)
+          .addScaledVector(f.north, -0.66 * rs);
+        _actTarget.copy(airplane.group.position).lerp(pad.planeRestPos, 0.35);
+        _actUp.copy(pad.normal);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 42, smooth: 8, minAlt: 0.08 * rs, sub: 'Podejście do lądowania' };
+      }
+
+      if (shotType === 'finale_orbit') {
+        const destPad = pads[pads.length - 1] || pad;
+        const f = surfaceFrame(destPad.normal);
+        const ang = sec * 0.36;
+        _actPos.copy(destPad.normal).multiplyScalar(EARTH_RADIUS + 0.42 * rs)
+          .addScaledVector(f.east, Math.cos(ang) * 1.48 * rs)
+          .addScaledVector(f.north, Math.sin(ang) * 1.48 * rs);
+        _actTarget.copy(destPad.normal).multiplyScalar(EARTH_RADIUS + 0.78 * rs);
+        _actUp.copy(destPad.normal);
+        return { pos: _actPos, target: _actTarget, up: _actUp, fov: 50, smooth: 6, minAlt: 0.10 * rs, sub: 'Finał • Fajerwerki' };
+      }
+
+      // Default / handoff_wide
+      const f = surfaceFrame(pad.normal);
+      _actPos.copy(pad.normal).multiplyScalar(EARTH_RADIUS + 2.0 * rs)
+        .addScaledVector(f.north, -1.7 * rs)
+        .addScaledVector(f.east, 1.45 * rs);
+      _actTarget.copy(pad.planeRestPos).addScaledVector(pad.normal, 0.32 * rs);
+      _actUp.copy(pad.normal);
+      return { pos: _actPos, target: _actTarget, up: _actUp, fov: 46, smooth: 6, minAlt: 0.12 * rs, sub: 'Choreografia dźwigów' };
+    }
+
+    window.__setCamMode = (mode) => setCamMode(mode);
+    window.__getCamMode = () => ({ mode: camMode, directorShot: currentDirectorShot, fov: Math.round(camera.fov * 10) / 10 });
 
     const labelsLayer = document.getElementById('labels-layer');
     let LABEL_DEFS = [];
@@ -5201,6 +5512,7 @@
     }
 
     window.__setCamera = (posArr, targetArr) => {
+      exitActionCamToFree(true);
       camTransition = null;
       followPlane = false;
       btnFollow.classList.remove('active');
@@ -5391,6 +5703,17 @@
       };
     };
 
+    renderer.domElement.addEventListener('pointerdown', () => {
+      if (camMode !== 'free') {
+        exitActionCamToFree(true);
+      }
+    });
+    renderer.domElement.addEventListener('wheel', () => {
+      if (camMode !== 'free') {
+        exitActionCamToFree(true);
+      }
+    }, { passive: true });
+
     controls.addEventListener('start', () => {
       clearSkyHover();
       hideIntro();
@@ -5400,6 +5723,24 @@
         btnFollow.classList.remove('active');
       }
       setActiveCamBtn(null);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.key === '1') { e.preventDefault(); setCamMode('cockpit'); }
+      else if (e.key === '2') { e.preventDefault(); setCamMode('cabin'); }
+      else if (e.key === '3') { e.preventDefault(); setCamMode('hook'); }
+      else if (e.key === '4') { e.preventDefault(); setCamMode('director'); }
+      else if (e.key === '0') { e.preventDefault(); flyToPreset('globe'); }
+      else if (e.key === 'Escape') {
+        if (!routeDrawer.classList.contains('closed')) {
+          closeRouteDrawer();
+        } else if (camMode !== 'free') {
+          flyToPreset('globe');
+        }
+      }
     });
 
     let isPlaying = true;
@@ -5429,6 +5770,7 @@
 
     btnFollow.addEventListener('click', () => {
       hideIntro();
+      exitActionCamToFree(true);
       followPlane = !followPlane;
       btnFollow.classList.toggle('active', followPlane);
       camTransition = null;
@@ -5577,26 +5919,73 @@
         arc.material.opacity = i === state.step.legIdx ? 0.65 : 0.25;
       });
 
-      if (camTransition) {
-        camTransition.progress = Math.min(1, camTransition.progress + dt / camTransition.duration);
-        const u = easeOutCubic(camTransition.progress);
-        camera.position.lerpVectors(camTransition.startPos, camTransition.endPos, u);
-        controls.target.lerpVectors(camTransition.startTarget, camTransition.endTarget, u);
-        if (camTransition.progress >= 1) camTransition = null;
-      } else if (followPlane) {
-        const desiredTarget = planeInfo.pos.clone().multiplyScalar(0.68);
-        const radial = planeInfo.pos.clone().normalize();
-        const desiredCamPos = radial.multiplyScalar(9.8 + Math.min(planeInfo.alt, 2.0)).add(new THREE.Vector3(0, 1.2, 0));
-        controls.target.lerp(desiredTarget, Math.min(1, dt * 3.5));
-        camera.position.lerp(desiredCamPos, Math.min(1, dt * 2.6));
+      if (camMode !== 'free') {
+        let shotType = camMode;
+        let subLabel = '';
+        if (camMode === 'director') {
+          const pick = pickDirectorShot(state);
+          shotType = pick.shot;
+          subLabel = pick.sub;
+          if (pick.cutKey !== lastDirectorCutKey) {
+            lastDirectorCutKey = pick.cutKey;
+            currentDirectorShot = shotType;
+            camSnapNext = true;
+          }
+        } else {
+          currentDirectorShot = shotType;
+        }
+
+        const shot = computeActionShot(shotType, state, sec);
+        targetFov = shot.fov;
+        syncCamModeUI(subLabel || shot.sub);
+
+        const minAlt = shot.minAlt ?? 0.08;
+        if (shot.pos.length() < EARTH_RADIUS + minAlt) {
+          shot.pos.setLength(EARTH_RADIUS + minAlt);
+        }
+
+        if (camSnapNext) {
+          camera.position.copy(shot.pos);
+          controls.target.copy(shot.target);
+          camera.up.copy(shot.up);
+          camera.fov = targetFov;
+          camera.updateProjectionMatrix();
+          camSnapNext = false;
+        } else {
+          const alpha = 1 - Math.exp(-Math.max(dt, 1 / 60) * (shot.smooth || 10));
+          camera.position.lerp(shot.pos, alpha);
+          controls.target.lerp(shot.target, alpha);
+          camera.up.lerp(shot.up, alpha).normalize();
+        }
+        camera.lookAt(controls.target);
+      } else {
+        targetFov = 43;
+        if (camTransition) {
+          camTransition.progress = Math.min(1, camTransition.progress + dt / camTransition.duration);
+          const u = easeOutCubic(camTransition.progress);
+          camera.position.lerpVectors(camTransition.startPos, camTransition.endPos, u);
+          controls.target.lerpVectors(camTransition.startTarget, camTransition.endTarget, u);
+          if (camTransition.progress >= 1) camTransition = null;
+        } else if (followPlane) {
+          const desiredTarget = planeInfo.pos.clone().multiplyScalar(0.68);
+          const radial = planeInfo.pos.clone().normalize();
+          const desiredCamPos = radial.multiplyScalar(9.8 + Math.min(planeInfo.alt, 2.0)).add(new THREE.Vector3(0, 1.2, 0));
+          controls.target.lerp(desiredTarget, Math.min(1, dt * 3.5));
+          camera.position.lerp(desiredCamPos, Math.min(1, dt * 2.6));
+        }
+
+        // Prevent diving inside Earth surface during close-ups
+        const minCamAlt = Math.min(0.24, Math.max(0.12, routeScale * 0.45));
+        if (camera.position.length() < EARTH_RADIUS + minCamAlt) {
+          camera.position.setLength(EARTH_RADIUS + minCamAlt);
+        }
+        controls.update();
       }
 
-      // Prevent diving inside Earth surface during close-ups
-      const minCamAlt = Math.min(0.24, Math.max(0.12, routeScale * 0.45));
-      if (camera.position.length() < EARTH_RADIUS + minCamAlt) {
-        camera.position.setLength(EARTH_RADIUS + minCamAlt);
+      if (Math.abs(camera.fov - targetFov) > 0.05) {
+        camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, Math.min(1, Math.max(dt, 1 / 60) * 7));
+        camera.updateProjectionMatrix();
       }
-      controls.update();
 
       // Dynamic camera-focused shadow frustum for razor-sharp close-up shadows
       const camDist = camera.position.distanceTo(controls.target);
