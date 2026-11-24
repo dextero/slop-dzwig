@@ -752,6 +752,226 @@
       }
     }
 
+    /* Manual Override Operator Console */
+    #manual-hud {
+      position: fixed;
+      right: 16px;
+      bottom: 98px;
+      width: min(338px, calc(100vw - 32px));
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(7, 13, 26, 0.90);
+      border: 1px solid rgba(251, 191, 36, 0.42);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    #manual-hud.closed {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(14px);
+    }
+
+    #manual-hud.alarm {
+      border-color: rgba(244, 63, 94, 0.9);
+      box-shadow: 0 0 26px rgba(244, 63, 94, 0.45);
+    }
+
+    .manual-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .manual-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fde68a;
+    }
+
+    .manual-score {
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.16);
+      border: 1px solid rgba(52, 211, 153, 0.48);
+      color: #a7f3d0;
+    }
+
+    .manual-cranes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .manual-crane-btn {
+      padding: 3px 8px;
+      font-size: 10.5px;
+      border-radius: 7px;
+    }
+
+    .manual-crane-btn.active {
+      background: rgba(251, 191, 36, 0.22);
+      border-color: rgba(251, 191, 36, 0.72);
+      color: #fef3c7;
+    }
+
+    .manual-obj {
+      font-size: 11.5px;
+      color: #e0f2fe;
+      line-height: 1.35;
+      padding: 6px 8px;
+      border-radius: 9px;
+      background: rgba(56, 189, 248, 0.09);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+    }
+
+    .manual-gauges {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .m-gauge-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .m-gauge-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .m-gauge-meta b {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+
+    .m-gauge-meta b.ready {
+      color: #34d399;
+    }
+
+    .m-gauge-meta b.warn {
+      color: #fbbf24;
+    }
+
+    .m-gauge-meta b.danger {
+      color: #fb7185;
+    }
+
+    .m-bar {
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      overflow: hidden;
+    }
+
+    .m-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: #38bdf8;
+      transition: width 0.06s linear, background-color 0.15s ease;
+    }
+
+    .manual-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .m-key {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      padding: 6px 4px;
+      border-radius: 9px;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      touch-action: none;
+    }
+
+    .m-key small {
+      font-size: 9px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .m-key.held {
+      background: rgba(56, 189, 248, 0.28);
+      border-color: rgba(56, 189, 248, 0.8);
+      color: #e0f2fe;
+      transform: scale(0.96);
+    }
+
+    .manual-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    #btn-manual-action {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    #btn-manual-action.ready {
+      background: rgba(52, 211, 153, 0.24);
+      border-color: rgba(52, 211, 153, 0.85);
+      color: #d1fae5;
+      box-shadow: 0 0 14px rgba(52, 211, 153, 0.35);
+    }
+
+    #manual-toast {
+      font-size: 11px;
+      line-height: 1.35;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(52, 211, 153, 0.14);
+      border: 1px solid rgba(52, 211, 153, 0.38);
+      color: #d1fae5;
+      display: none;
+    }
+
+    #manual-toast.show {
+      display: block;
+    }
+
+    #manual-toast.warn {
+      background: rgba(244, 63, 94, 0.16);
+      border-color: rgba(244, 63, 94, 0.55);
+      color: #fecdd3;
+    }
+
+    #btn-manual.manual-active {
+      background: rgba(251, 191, 36, 0.24);
+      border-color: rgba(251, 191, 36, 0.85);
+      color: #fef3c7;
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
+    }
+
     .hint-badge {
       position: fixed;
       top: 16px;
@@ -976,12 +1196,57 @@
     </div>
   </div>
 
+  <div id="manual-hud" class="closed" aria-label="Tryb ręczny operatora dźwigu">
+    <div class="manual-head">
+      <div class="manual-title">
+        <span>🎮 TRYB RĘCZNY</span>
+        <span class="manual-score" id="manual-score">0 PKT</span>
+      </div>
+      <button id="btn-manual-close" class="mini-btn" title="Powrót do automatu (G)">✕ Auto</button>
+    </div>
+
+    <div class="manual-cranes" id="manual-cranes"></div>
+    <div class="manual-obj" id="manual-obj">Przejmij kontrolę nad dźwigiem i przetransportuj samolot!</div>
+
+    <div class="manual-gauges">
+      <div class="m-gauge-row">
+        <div class="m-gauge-meta"><span>Zbliżenie do celu</span><b id="manual-align-val">--</b></div>
+        <div class="m-bar"><div class="m-bar-fill" id="manual-align-bar"></div></div>
+      </div>
+      <div class="m-gauge-row">
+        <div class="m-gauge-meta"><span>Stabilność wahadła</span><b id="manual-sway-val">Stabilne</b></div>
+        <div class="m-bar"><div class="m-bar-fill" id="manual-sway-bar"></div></div>
+      </div>
+      <div class="m-gauge-row">
+        <div class="m-gauge-meta"><span>Wysokość haka</span><b id="manual-alt-val">--</b></div>
+        <div class="m-bar"><div class="m-bar-fill" id="manual-alt-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="manual-pad">
+      <button class="m-key" data-mkey="left" title="Obrót w lewo (A / ←)">◀ A<small>Obrót</small></button>
+      <button class="m-key" data-mkey="up" title="Podnieś linę (W / ↑)">▲ W<small>Lina ↑</small></button>
+      <button class="m-key" data-mkey="right" title="Obrót w prawo (D / →)">D ▶<small>Obrót</small></button>
+      <button class="m-key" data-mkey="trolleyIn" title="Wózek do środka (Q)">⏴ Q<small>Wózek −</small></button>
+      <button class="m-key" data-mkey="down" title="Opuść linę (S / ↓)">▼ S<small>Lina ↓</small></button>
+      <button class="m-key" data-mkey="trolleyOut" title="Wózek na zewnątrz (E)">E ⏵<small>Wózek +</small></button>
+    </div>
+
+    <div class="manual-actions">
+      <button id="btn-manual-action" title="Zaczep lub odstaw samolot (Spacja)">🪝 Zaczep [Spacja]</button>
+      <button id="btn-manual-center" class="mini-btn" title="Ustaw wózek na dokładnym promieniu lotnisk">🎯 Centruj</button>
+    </div>
+
+    <div id="manual-toast"></div>
+  </div>
+
   <div class="controls-bar">
     <button id="btn-play" class="primary">❚❚ Pauza</button>
     <button id="btn-restart">↺ Reset</button>
     <button id="btn-speed">1× Prędkość</button>
     <button id="btn-sky" title="Pokaż/ukryj gwiazdozbiory i podpisy obiektów na niebie">✦ Niebo</button>
     <button id="btn-route" title="Konfiguruj trasę i lotniska">✎ Trasa</button>
+    <button id="btn-manual" title="Przejmij ręczne sterowanie dźwigiem: WASD + QE + Spacja (klawisz G)">🎮 Ręczny</button>
     <button id="btn-audio" class="audio-prompt" title="Włącz/wyłącz dźwięk proceduralny (skrót: M)">
       <span class="audio-icon">🔇</span>
       <span>Dźwięk</span>
@@ -3895,13 +4160,24 @@
 
       craneGroup.updateMatrixWorld(true);
 
+      let curTrolleyDist = trolleyDist;
+      const setTrolleyDist = (d) => {
+        const minD = Math.max(0.24 * s, trolleyDist * 0.35);
+        const maxD = Math.max(trolleyDist, jibLength - 0.05 * s);
+        curTrolleyDist = THREE.MathUtils.clamp(d, minD, maxD);
+        trolleyGroup.position.z = curTrolleyDist;
+        sheaveLocal[0].z = curTrolleyDist;
+        sheaveLocal[1].z = curTrolleyDist;
+      };
+      const getTrolleyDist = () => curTrolleyDist;
+
       const angleTo = (dirNormal) => {
         const local = craneGroup.worldToLocal(dirNormal.clone().multiplyScalar(EARTH_RADIUS + H));
         return Math.atan2(local.x, local.z);
       };
 
-      const trolleyWorld = (slewAngle, out = new THREE.Vector3()) => {
-        out.set(Math.sin(slewAngle) * trolleyDist, H, Math.cos(slewAngle) * trolleyDist);
+      const trolleyWorld = (slewAngle, out = new THREE.Vector3(), dist = curTrolleyDist) => {
+        out.set(Math.sin(slewAngle) * dist, H, Math.cos(slewAngle) * dist);
         return craneGroup.localToWorld(out);
       };
 
@@ -3931,6 +4207,8 @@
         searchlightUniforms,
         angleTo,
         trolleyWorld,
+        setTrolleyDist,
+        getTrolleyDist,
         slewQuat
       };
     }
@@ -5593,6 +5871,7 @@
 
     function rebuildRoute(stops, flyOverview = true) {
       if (!stops || stops.length < 2) return;
+      if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) manualCtrl.exit(false);
       clearRouteGroup();
       for (const l of LABEL_DEFS) l.el.remove();
       LABEL_DEFS = [];
@@ -6470,11 +6749,16 @@
       } else if (camMode !== 'free' && (e.key === '-' || e.key === '_')) {
         e.preventDefault();
         actionCamZoomTarget = THREE.MathUtils.clamp(actionCamZoomTarget / 0.85, 0.45, 2.6);
+      } else if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        if (typeof manualCtrl !== 'undefined') manualCtrl.toggle();
       } else if (e.key === 'Escape') {
         if (!routeDrawer.classList.contains('closed')) {
           closeRouteDrawer();
         } else if (camMode !== 'free') {
           flyToPreset('globe');
+        } else if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) {
+          manualCtrl.exit();
         }
       }
     });
@@ -6489,6 +6773,10 @@
     });
 
     btnRestart.addEventListener('click', () => {
+      if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) {
+        manualCtrl.restartMission();
+        return;
+      }
       seek(0);
       isPlaying = true;
       btnPlay.textContent = '❚❚ Pauza';
@@ -6519,6 +6807,21 @@
     const elProgress = document.getElementById('progress-fill');
 
     function updateHUD(state) {
+      if (typeof manualCtrl !== 'undefined' && manualCtrl.isActive()) {
+        elTimer.textContent = `RĘCZNY • ${manualCtrl.getScore()} PKT`;
+        elTitle.textContent = state.step.title;
+        elDesc.textContent = state.step.desc;
+        const visited = manualCtrl.getVisitedCount();
+        elProgress.style.width = `${((visited / Math.max(1, activeStops.length)) * 100).toFixed(1)}%`;
+        elCranePill.textContent = state.step.crane;
+        const activeIdx = state.step.stopIdx ?? 0;
+        stopPillEls.forEach((pill, i) => {
+          pill.classList.toggle('active', i === activeIdx);
+          pill.classList.toggle('done', manualCtrl.isStopVisited(i) && i !== activeIdx);
+        });
+        return;
+      }
+
       elTimer.textContent = `${simTime.toFixed(1)}s / ${TOTAL_DURATION.toFixed(1)}s`;
       elTitle.textContent = state.step.title;
       elDesc.textContent = state.step.desc;
@@ -6542,6 +6845,683 @@
       starUniforms.uPixelRatio.value = PR;
     }
     window.addEventListener('resize', resize);
+
+    // -------------------------------------------------------------------------
+    // 11b. Manual Override Mode (Interactive Crane Operator Minigame)
+    // -------------------------------------------------------------------------
+    function createManualController() {
+      const btnManual = document.getElementById('btn-manual');
+      const manualHud = document.getElementById('manual-hud');
+      const btnClose = document.getElementById('btn-manual-close');
+      const cranesEl = document.getElementById('manual-cranes');
+      const objEl = document.getElementById('manual-obj');
+      const scoreEl = document.getElementById('manual-score');
+      const alignValEl = document.getElementById('manual-align-val');
+      const alignBarEl = document.getElementById('manual-align-bar');
+      const swayValEl = document.getElementById('manual-sway-val');
+      const swayBarEl = document.getElementById('manual-sway-bar');
+      const altValEl = document.getElementById('manual-alt-val');
+      const altBarEl = document.getElementById('manual-alt-bar');
+      const btnAction = document.getElementById('btn-manual-action');
+      const btnCenter = document.getElementById('btn-manual-center');
+      const toastEl = document.getElementById('manual-toast');
+      const padKeyEls = Array.from(manualHud.querySelectorAll('.m-key[data-mkey]'));
+
+      let active = false;
+      const keys = { left: false, right: false, up: false, down: false, trolleyIn: false, trolleyOut: false };
+      const btnHeld = { left: false, right: false, up: false, down: false, trolleyIn: false, trolleyOut: false };
+
+      let craneIdx = 0;
+      let att = 0; // 0 = resting on pad[loc], >0 = attached to crane (att - 1)
+      let loc = 0;
+      let pickupLoc = 0;
+      let score = 0;
+      let visited = new Set([0]);
+      let finaleActive = false;
+      let alarmTimer = 0;
+      let toastTimer = 0;
+      let centeringTrolley = false;
+
+      let a = [];
+      let aVel = [];
+      let h = [];
+      let hVel = [];
+      let tDist = [];
+      let tVel = [];
+      let prevTrolleyPos = [];
+      let prevTrolleyVel = [];
+      let manualRelQuat = new THREE.Quaternion();
+      let manualRestQuat = new THREE.Quaternion();
+      let lastKinematics = { hoistSpeed: 0, hoistDir: 0, slewTipSpeed: 0, maxSway: 0 };
+
+      const _mT = new THREE.Vector3();
+      const _mVel = new THREE.Vector3();
+      const _mAcc = new THREE.Vector3();
+      const _mShackle = new THREE.Vector3();
+
+      function showToast(msg, isWarn = false, dur = 3.6) {
+        toastEl.textContent = msg;
+        toastEl.classList.toggle('warn', isWarn);
+        toastEl.classList.add('show');
+        toastTimer = dur;
+        if (isWarn) {
+          alarmTimer = 0.75;
+          manualHud.classList.add('alarm');
+        }
+      }
+
+      function clearInputs() {
+        for (const k in keys) { keys[k] = false; btnHeld[k] = false; }
+        syncKeyHighlights();
+      }
+
+      function syncKeyHighlights() {
+        padKeyEls.forEach((el) => {
+          const k = el.dataset.mkey;
+          el.classList.toggle('held', !!(keys[k] || btnHeld[k]));
+        });
+      }
+
+      function renderCraneTabs() {
+        cranesEl.innerHTML = '';
+        cranes.forEach((c, idx) => {
+          const b = document.createElement('button');
+          b.className = 'manual-crane-btn' + (idx === craneIdx ? ' active' : '');
+          const sA = activeStops[idx]?.code || `S${idx + 1}`;
+          const sB = activeStops[idx + 1]?.code || `S${idx + 2}`;
+          b.textContent = `Dźwig ${idx + 1} (${sA}↔${sB})`;
+          b.addEventListener('click', () => selectCrane(idx));
+          cranesEl.appendChild(b);
+        });
+      }
+
+      function selectCrane(idx) {
+        if (!cranes.length) return;
+        craneIdx = ((idx % cranes.length) + cranes.length) % cranes.length;
+        centeringTrolley = false;
+        renderCraneTabs();
+      }
+
+      function initFromCurrent(resetToStart = false) {
+        if (!cranes.length) return;
+        const snap = resetToStart ? { S: { ...INIT_STATE }, step: STEPS[0] } : stateAt(simTime);
+        const S = snap.S;
+
+        craneIdx = resetToStart ? 0 : Math.min(cranes.length - 1, Math.max(0, snap.step?.legIdx ?? 0));
+        att = resetToStart ? 0 : (S.att || 0);
+        loc = resetToStart ? 0 : (S.loc || 0);
+        score = 0;
+        visited = new Set([loc]);
+        finaleActive = false;
+        alarmTimer = 0;
+        toastTimer = 0;
+        centeringTrolley = false;
+        toastEl.classList.remove('show', 'warn');
+        manualHud.classList.remove('alarm');
+
+        a = []; aVel = []; h = []; hVel = []; tDist = []; tVel = [];
+        prevTrolleyPos = []; prevTrolleyVel = [];
+
+        cranes.forEach((c, i) => {
+          const ai = S['a' + (i + 1)] ?? pickAngles[i];
+          const hi = S['h' + (i + 1)] ?? parkAlts[i];
+          c.setTrolleyDist(c.trolleyDist);
+          a.push(ai);
+          aVel.push(0);
+          h.push(hi);
+          hVel.push(0);
+          tDist.push(c.trolleyDist);
+          tVel.push(0);
+          const p0 = c.trolleyWorld(ai, new THREE.Vector3(), c.trolleyDist);
+          prevTrolleyPos.push(p0);
+          prevTrolleyVel.push(new THREE.Vector3());
+          if (resetToStart && pend[i]) {
+            pend[i].o.set(0, 0, 0);
+            pend[i].v.set(0, 0, 0);
+          }
+        });
+
+        if (att > 0 && relQuats[att - 1]) {
+          manualRelQuat.copy(relQuats[att - 1]);
+        } else {
+          manualRelQuat.setFromAxisAngle(UP, Math.PI / 2);
+        }
+        manualRestQuat.copy((REST_POSES[loc] || REST_POSES[0]).q);
+        if (destinationFireworks) destinationFireworks.reset();
+        scoreEl.textContent = `${score} PKT`;
+        renderCraneTabs();
+      }
+
+      function enter() {
+        if (active || !cranes.length) return;
+        hideIntro();
+        closeRouteDrawer();
+        active = true;
+        clearInputs();
+        initFromCurrent(false);
+        manualHud.classList.remove('closed');
+        btnManual.classList.add('manual-active');
+        showToast('Steruj: A/D obrót • W/S lina • Q/E wózek • Spacja zaczep/postaw • Tab zmień dźwig', false, 5.0);
+      }
+
+      function exit(resumeAuto = true) {
+        if (!active) return;
+        active = false;
+        clearInputs();
+        cranes.forEach((c) => c.setTrolleyDist(c.trolleyDist));
+        manualHud.classList.add('closed');
+        manualHud.classList.remove('alarm');
+        btnManual.classList.remove('manual-active');
+        if (resumeAuto) {
+          seek(simTime);
+          updateHUD(applyState(simTime, 0.016, false));
+        }
+      }
+
+      function toggle() {
+        if (active) exit(true);
+        else enter();
+      }
+
+      function restartMission() {
+        if (!active) return;
+        clearInputs();
+        initFromCurrent(true);
+        highSpeedVFX.reset();
+        showToast('Misja ręczna zresetowana — podepnij samolot na starcie!', false, 3.2);
+      }
+
+      function getTargetGoalInfo() {
+        const c = cranes[craneIdx];
+        const rs = Math.max(0.32, routeScale);
+        const hookPos = c.hookGroup.position;
+
+        if (att === 0) {
+          // Goal: align hook to airplane's top shackle
+          airplane.group.updateMatrixWorld(true);
+          airplane.group.localToWorld(_mShackle.copy(airplane.hookLocal));
+          const dist = hookPos.distanceTo(_mShackle);
+          const capR = 0.36 * Math.max(0.45, rs);
+          const stopName = activeStops[loc] ? `${activeStops[loc].displayCity} (${activeStops[loc].code})` : 'lądowisko';
+          return {
+            mode: 'grab',
+            dist,
+            ready: dist <= capR,
+            capR,
+            targetIdx: loc,
+            objText: `Cel: Opuść hak nad ${stopName} i podepnij samolot [Spacja]`
+          };
+        }
+
+        // Carrying on crane (att - 1)
+        const nextStopIdx = Math.min(pads.length - 1, Math.max(loc + 1, craneIdx + 1));
+        let bestIdx = nextStopIdx;
+        let bestDist = Infinity;
+        for (let k = 0; k < pads.length; k++) {
+          const d = airplane.group.position.distanceTo(pads[k].planeRestPos);
+          if (d < bestDist) { bestDist = d; bestIdx = k; }
+        }
+        const pad = pads[bestIdx];
+        const planeNorm = airplane.group.position.clone().normalize();
+        const horizDist = planeNorm.distanceTo(pad.normal) * EARTH_RADIUS;
+        const altAboveRest = Math.max(0, h[att - 1] - effRestHookAlt);
+        const horizTol = 0.38 * Math.max(0.45, rs);
+        const vertTol = 0.16 * Math.max(0.45, rs);
+        const ready = att === craneIdx + 1 && horizDist <= horizTol && altAboveRest <= vertTol;
+        const destStop = activeStops[nextStopIdx];
+        const destName = destStop ? `${destStop.displayCity} (${destStop.code})` : 'cel';
+        const isWrongCrane = att !== craneIdx + 1;
+        return {
+          mode: 'drop',
+          dist: bestDist,
+          horizDist,
+          altAboveRest,
+          ready,
+          capR: horizTol,
+          targetIdx: bestIdx,
+          objText: isWrongCrane
+            ? `Samolot wisi na Dźwigu ${att} — przełącz [Tab], aby nim sterować!`
+            : (ready
+              ? `Nad ${activeStops[bestIdx].displayCity} (${activeStops[bestIdx].code}) — wciśnij [Spacja], aby postawić!`
+              : `Cel: Przenieś samolot nad ${destName}, wygaś wahadło i zejdź w dół (S)`)
+        };
+      }
+
+      function tryAction() {
+        if (!active || !cranes.length) return;
+        const c = cranes[craneIdx];
+        const g = getTargetGoalInfo();
+        const rs = Math.max(0.32, routeScale);
+
+        if (att === 0) {
+          if (g.ready) {
+            att = craneIdx + 1;
+            pickupLoc = loc;
+            finaleActive = false;
+            manualRelQuat.copy(c.hookGroup.quaternion).invert().multiply(airplane.group.quaternion);
+            triggerPulse(airplane.group.position, STOP_COLORS[loc % STOP_COLORS.length]);
+            audioEngine.playLatch(true, false, airplane.group.position);
+            audioEngine.playATC('lift');
+            score += 100;
+            scoreEl.textContent = `${score} PKT`;
+            showToast(`🪝 PODPIĘTO (+100 PKT)! Unieś samolot (W) i ruszaj ramieniem (A/D)!`, false, 3.6);
+          } else {
+            const km = Math.round(g.dist * 1274);
+            showToast(`Hak za daleko od samolotu (${km.toLocaleString('pl-PL')} km) — zbliż go (WASD/QE)!`, true, 2.8);
+          }
+          return;
+        }
+
+        // Carrying -> attempt touchdown on nearest pad
+        if (att !== craneIdx + 1) {
+          selectCrane(att - 1);
+          showToast(`Przełączono na Dźwig ${att}, który niesie samolot.`, false, 2.4);
+          return;
+        }
+
+        if (g.ready) {
+          const padIdx = g.targetIdx;
+          const pad = pads[padIdx];
+          const isDelivery = padIdx !== pickupLoc;
+          const swayMag = pend[craneIdx].o.length() / Math.max(0.15, rs);
+          const horizRatio = g.horizDist / g.capR;
+          const speedMag = Math.abs(hVel[craneIdx]) / Math.max(0.28, rs);
+          const q = THREE.MathUtils.clamp(1.0 - swayMag * 2.1 - horizRatio * 0.42 - speedMag * 0.55, 0, 1);
+
+          let grade, pts, msg;
+          if (!isDelivery) {
+            grade = 'OK'; pts = 0; msg = 'Odstawiono na płycie startowej (0 PKT). Przenieś samolot dalej!';
+          } else if (q >= 0.76) {
+            grade = 'S'; pts = 500; msg = 'OCENA S (+500 PKT)! Jedwabiste przyziemienie — kawa nawet nie drgnęła!';
+          } else if (q >= 0.50) {
+            grade = 'A'; pts = 350; msg = 'OCENA A (+350 PKT)! Czyste lądowanie bez jednego kilometra lotu!';
+          } else if (q >= 0.26) {
+            grade = 'B'; pts = 200; msg = 'OCENA B (+200 PKT)! Lekkie bujnięcie, ale podwozie całe!';
+          } else {
+            grade = 'C'; pts = 100; msg = 'OCENA C (+100 PKT)! Twardo! Pasażerowie sprawdzają pasy!';
+          }
+
+          // Align airplane cleanly tangent to landing pad preserving heading
+          const planeFwd = new THREE.Vector3(0, 0, 1).applyQuaternion(airplane.group.quaternion);
+          planeFwd.addScaledVector(pad.normal, -planeFwd.dot(pad.normal));
+          if (planeFwd.lengthSq() < 1e-4) planeFwd.copy(surfaceFrame(pad.normal).north);
+          planeFwd.normalize();
+          const planeRight = new THREE.Vector3().crossVectors(pad.normal, planeFwd).normalize();
+          const m = new THREE.Matrix4().makeBasis(planeRight, pad.normal, planeFwd);
+          manualRestQuat.setFromRotationMatrix(m);
+
+          att = 0;
+          loc = padIdx;
+          const isNewStop = !visited.has(padIdx);
+          visited.add(padIdx);
+          score += pts;
+          triggerPulse(pad.planeRestPos, STOP_COLORS[padIdx % STOP_COLORS.length]);
+
+          const isFinale = isDelivery && padIdx === pads.length - 1;
+          if (isFinale) {
+            finaleActive = true;
+            if (isNewStop) score += 1000;
+            audioEngine.playLatch(false, true, pad.planeRestPos);
+            setTimeout(() => audioEngine.playATC('finale'), 500);
+            showToast(`🎆 MISJA UKOŃCZONA! ${msg} (+1000 PKT BONUS)`, false, 6.5);
+          } else {
+            audioEngine.playLatch(false, false, pad.planeRestPos);
+            const nextTip = (isDelivery && padIdx < cranes.length && padIdx !== craneIdx)
+              ? ` Wciśnij [Tab], aby przejąć Dźwig ${padIdx + 1}!`
+              : '';
+            showToast(`🛬 ${msg}${nextTip}`, false, 4.8);
+          }
+          scoreEl.textContent = `${score} PKT`;
+        } else {
+          showToast('⚠️ Nie można puścić w powietrzu! Zbliż się nad lądowisko i zejdź nisko (S).', true, 3.0);
+        }
+      }
+
+      function stepSub(subDt) {
+        const rs = Math.max(0.24, routeScale);
+
+        // Apply player inputs to active crane
+        {
+          const i = craneIdx;
+          const c = cranes[i];
+          const inLeft = keys.left || btnHeld.left;
+          const inRight = keys.right || btnHeld.right;
+          const inUp = keys.up || btnHeld.up;
+          const inDown = keys.down || btnHeld.down;
+          const inTIn = keys.trolleyIn || btnHeld.trolleyIn;
+          const inTOut = keys.trolleyOut || btnHeld.trolleyOut;
+
+          // Slew angular acceleration scaled smoothly to trolley arm length so tip speed stays intuitive
+          const armScale = Math.max(0.85, c.getTrolleyDist());
+          const maxTipV = 1.65 * Math.max(0.55, rs);
+          const maxOmega = maxTipV / armScale;
+          const slewTorque = (inLeft ? 1 : 0) - (inRight ? 1 : 0);
+          if (slewTorque !== 0) {
+            aVel[i] += slewTorque * (maxOmega * 1.45) * subDt;
+            aVel[i] = THREE.MathUtils.clamp(aVel[i], -maxOmega, maxOmega);
+          } else {
+            aVel[i] *= Math.exp(-subDt * 3.6);
+          }
+          a[i] = wrapAngle(a[i] + aVel[i] * subDt);
+
+          // Hoist vertical winch
+          const curDist = c.getTrolleyDist();
+          const trolleyAlt = Math.hypot(EARTH_RADIUS + c.height, curDist) - EARTH_RADIUS;
+          const maxAlt = Math.max(effRestHookAlt + 0.15 * rs, trolleyAlt - 0.045 * c.scale);
+          const hoistIn = (inUp ? 1 : 0) - (inDown ? 1 : 0);
+          const maxHoistV = 0.62 * Math.max(0.45, rs);
+          if (hoistIn !== 0) {
+            hVel[i] += hoistIn * (maxHoistV * 3.2) * subDt;
+            hVel[i] = THREE.MathUtils.clamp(hVel[i], -maxHoistV, maxHoistV);
+          } else {
+            hVel[i] *= Math.exp(-subDt * 7.5);
+          }
+          h[i] += hVel[i] * subDt;
+
+          if (h[i] <= effRestHookAlt) {
+            // Check hard ground slam while carrying airplane!
+            if (att === i + 1 && hVel[i] < -0.24 * Math.max(0.45, rs)) {
+              const g = getTargetGoalInfo();
+              if (!g.ready || hVel[i] < -0.34 * Math.max(0.45, rs)) {
+                score = Math.max(0, score - 50);
+                scoreEl.textContent = `${score} PKT`;
+                audioEngine.playLatch(false, false, airplane.group.position);
+                showToast('⚠️ ALARM! Zbyt twarde uderzenie o ziemię (-50 PKT)!', true, 2.8);
+                hVel[i] = 0.14 * Math.max(0.45, rs);
+              } else {
+                hVel[i] = 0;
+              }
+            } else {
+              hVel[i] = Math.max(0, hVel[i]);
+            }
+            h[i] = effRestHookAlt;
+          } else if (h[i] >= maxAlt) {
+            h[i] = maxAlt;
+            hVel[i] = Math.min(0, hVel[i]);
+          }
+
+          // Radial trolley movement along lattice jib (Q/E or Auto-Center)
+          const tInput = (inTOut ? 1 : 0) - (inTIn ? 1 : 0);
+          if (tInput !== 0) {
+            centeringTrolley = false;
+            const maxTV = 0.55 * Math.max(0.5, c.trolleyDist);
+            tVel[i] += tInput * (maxTV * 3.5) * subDt;
+            tVel[i] = THREE.MathUtils.clamp(tVel[i], -maxTV, maxTV);
+            tDist[i] += tVel[i] * subDt;
+          } else if (centeringTrolley) {
+            const diff = c.trolleyDist - tDist[i];
+            if (Math.abs(diff) < 0.002) {
+              tDist[i] = c.trolleyDist;
+              tVel[i] = 0;
+              centeringTrolley = false;
+            } else {
+              tVel[i] = diff * 5.0;
+              tDist[i] += tVel[i] * subDt;
+            }
+          } else {
+            tVel[i] *= Math.exp(-subDt * 7.0);
+            tDist[i] += tVel[i] * subDt;
+          }
+          c.setTrolleyDist(tDist[i]);
+          tDist[i] = c.getTrolleyDist();
+        }
+
+        // Damp idle cranes smoothly + step 120Hz tangential pendulum physics for ALL cranes
+        for (let i = 0; i < cranes.length; i++) {
+          if (i !== craneIdx) {
+            aVel[i] *= Math.exp(-subDt * 5.0);
+            hVel[i] *= Math.exp(-subDt * 6.0);
+            tVel[i] *= Math.exp(-subDt * 6.0);
+            a[i] = wrapAngle(a[i] + aVel[i] * subDt);
+          }
+
+          const c = cranes[i];
+          c.trolleyWorld(a[i], _mT, tDist[i]);
+          _mVel.subVectors(_mT, prevTrolleyPos[i]).divideScalar(Math.max(1e-5, subDt));
+          _mAcc.subVectors(_mVel, prevTrolleyVel[i]).divideScalar(Math.max(1e-5, subDt));
+          prevTrolleyPos[i].copy(_mT);
+          prevTrolleyVel[i].lerp(_mVel, Math.min(1, subDt * 35));
+
+          // Clamp numerical acceleration spikes
+          if (_mAcc.length() > 14) _mAcc.setLength(14);
+
+          const hat = _mT.clone().normalize();
+          const Lc = Math.max(0.08, _mT.length() - (EARTH_RADIUS + h[i]));
+          const P = pend[i];
+
+          const tang = (v) => v.addScaledVector(hat, -v.dot(hat));
+          tang(_mAcc);
+          tang(P.o);
+          tang(P.v);
+
+          const w2 = 11.0 / Lc;
+          const aa = P.o.clone().multiplyScalar(-w2)
+            .addScaledVector(P.v, -0.72)
+            .addScaledVector(_mAcc, -0.82);
+          P.v.addScaledVector(aa, subDt);
+          P.o.addScaledVector(P.v, subDt);
+
+          const grounded = att === i + 1 && h[i] < effRestHookAlt + 0.025 * Math.max(0.4, rs);
+          if (grounded) {
+            const damp = Math.exp(-subDt * 18);
+            P.o.multiplyScalar(damp);
+            P.v.multiplyScalar(damp);
+          }
+          const maxSway = Lc * 0.18;
+          if (P.o.length() > maxSway) P.o.setLength(maxSway);
+        }
+      }
+
+      function stepAndApply(dt) {
+        if (dt > 0) {
+          const steps = Math.max(1, Math.round(dt * 120));
+          const subDt = dt / steps;
+          for (let s = 0; s < steps; s++) stepSub(subDt);
+        }
+
+        // Build compatible state object S & step for cameras, HUD, labels, and VFX
+        const S = { att, loc };
+        let maxHoistSpeed = 0, hoistDir = 0, maxSlewTipSpeed = 0, maxSway = 0;
+
+        cranes.forEach((c, i) => {
+          S['a' + (i + 1)] = a[i];
+          S['h' + (i + 1)] = h[i];
+          c.slewGroup.rotation.y = a[i];
+          c.craneGroup.updateMatrixWorld(true);
+          c.trolleyWorld(a[i], _T, tDist[i]);
+
+          const hat = _T.clone().normalize();
+          _hook.copy(hat).multiplyScalar(EARTH_RADIUS + h[i]).add(pend[i].o);
+          _ropeUp.subVectors(_T, _hook).normalize();
+
+          const q = hookFrame(c, a[i], _ropeUp);
+          c.hookGroup.position.copy(_hook);
+          c.hookGroup.quaternion.copy(q);
+          c.hookGroup.updateMatrixWorld(true);
+
+          for (let k = 0; k < 2; k++) {
+            c.slewGroup.localToWorld(_pA.copy(c.sheaveLocal[k]));
+            c.hookGroup.localToWorld(_pB.copy(c.hookTopLocal[k]));
+            placeCylinder(c.ropes[k], _pA, _pB);
+          }
+
+          const isCarrying = att === i + 1;
+          c.statusRing.material.opacity = isCarrying ? 0.95 : (i === craneIdx ? 0.35 : 0.0);
+
+          if (c.searchlightMesh) {
+            _beamEnd.copy(_hook).addScaledVector(_ropeUp, -Math.min(0.65 * Math.max(0.3, routeScale), Math.max(0.05, h[i] - 0.02)));
+            if (_beamEnd.length() < EARTH_RADIUS + 0.03) _beamEnd.setLength(EARTH_RADIUS + 0.03);
+            placeCylinder(c.searchlightMesh, _beamEnd, _T);
+            c.searchlightUniforms.uIntensity.value = isCarrying ? 1.05 : (i === craneIdx ? 0.78 : 0.22);
+          }
+
+          if (isCarrying) {
+            const pq = q.clone().multiply(manualRelQuat);
+            airplane.group.quaternion.copy(pq);
+            airplane.group.position.copy(_hook).sub(airplane.hookLocal.clone().multiplyScalar(routeScale).applyQuaternion(pq));
+          }
+
+          if (Math.abs(hVel[i]) > maxHoistSpeed) { maxHoistSpeed = Math.abs(hVel[i]); hoistDir = hVel[i]; }
+          const tipV = Math.abs(aVel[i]) * tDist[i];
+          if (tipV > maxSlewTipSpeed) maxSlewTipSpeed = tipV;
+          const sw = pend[i].o.length() / Math.max(0.15, c.height);
+          if (sw > maxSway) maxSway = sw;
+        });
+
+        if (!att && pads[loc]) {
+          airplane.group.quaternion.copy(manualRestQuat);
+          const hk = stopNormals[loc].clone().multiplyScalar(EARTH_RADIUS + effRestHookAlt);
+          airplane.group.position.copy(hk).sub(airplane.hookLocal.clone().multiplyScalar(routeScale).applyQuaternion(manualRestQuat));
+        }
+
+        airplane.rig.visible = !!att;
+        if (att) airplane.propeller.rotation.z += dt * 26.0;
+
+        if (planeInfo.hasPrev && dt > 0.0001) {
+          const instSpeed = planeInfo.pos.distanceTo(airplane.group.position) / dt;
+          planeInfo.speed = THREE.MathUtils.lerp(planeInfo.speed, instSpeed, Math.min(1, dt * 8));
+        } else {
+          planeInfo.speed = 0;
+        }
+        planeInfo.prevPos.copy(planeInfo.pos);
+        planeInfo.pos.copy(airplane.group.position);
+        planeInfo.hasPrev = true;
+        planeInfo.alt = airplane.group.position.length() - EARTH_RADIUS;
+
+        if (destinationFireworks) destinationFireworks.update(finaleActive, dt);
+
+        lastKinematics = { hoistSpeed: maxHoistSpeed, hoistDir, slewTipSpeed: maxSlewTipSpeed, maxSway };
+
+        // Update Manual Operator Console gauges & objective
+        const g = getTargetGoalInfo();
+        objEl.textContent = g.objText;
+        const kmDist = Math.round(g.dist * 1274);
+        alignValEl.textContent = g.ready ? 'GOTOWY! [Spacja]' : `${kmDist.toLocaleString('pl-PL')} km`;
+        alignValEl.className = g.ready ? 'ready' : (kmDist < 1200 ? 'warn' : '');
+        const alignPct = THREE.MathUtils.clamp((1 - g.dist / (g.capR * 5.0)) * 100, 4, 100);
+        alignBarEl.style.width = `${alignPct.toFixed(1)}%`;
+        alignBarEl.style.backgroundColor = g.ready ? '#34d399' : '#38bdf8';
+
+        const swayPct = THREE.MathUtils.clamp((pend[craneIdx].o.length() / Math.max(0.08, 0.22 * Math.max(0.35, routeScale))) * 100, 0, 100);
+        swayValEl.textContent = swayPct < 28 ? 'Stabilne' : (swayPct < 68 ? 'Bujanie' : 'Silne wahadło!');
+        swayValEl.className = swayPct < 28 ? 'ready' : (swayPct < 68 ? 'warn' : 'danger');
+        swayBarEl.style.width = `${Math.max(4, swayPct).toFixed(1)}%`;
+        swayBarEl.style.backgroundColor = swayPct < 28 ? '#34d399' : (swayPct < 68 ? '#fbbf24' : '#fb7185');
+
+        const cAct = cranes[craneIdx];
+        const trolleyAlt = Math.hypot(EARTH_RADIUS + cAct.height, tDist[craneIdx]) - EARTH_RADIUS;
+        const altPct = THREE.MathUtils.clamp(((h[craneIdx] - effRestHookAlt) / Math.max(0.05, trolleyAlt - effRestHookAlt)) * 100, 0, 100);
+        altValEl.textContent = `${Math.round(Math.max(0, h[craneIdx] - effRestHookAlt) * 1274).toLocaleString('pl-PL')} km`;
+        altBarEl.style.width = `${Math.max(3, altPct).toFixed(1)}%`;
+
+        btnAction.textContent = att === 0 ? '🪝 Zaczep [Spacja]' : '🛬 Postaw [Spacja]';
+        btnAction.classList.toggle('ready', g.ready);
+
+        if (alarmTimer > 0) {
+          alarmTimer = Math.max(0, alarmTimer - dt);
+          if (alarmTimer === 0) manualHud.classList.remove('alarm');
+        }
+        if (toastTimer > 0) {
+          toastTimer = Math.max(0, toastTimer - dt);
+          if (toastTimer === 0) toastEl.classList.remove('show');
+        }
+
+        const step = {
+          t0: 0, d: 1,
+          stopIdx: g.targetIdx ?? loc,
+          legIdx: craneIdx,
+          crane: `Dźwig ${craneIdx + 1}`,
+          finale: finaleActive,
+          title: `Tryb Ręczny — Dźwig ${craneIdx + 1}`,
+          desc: g.objText
+        };
+        return { S, step };
+      }
+
+      // Wire Manual Mode buttons & keyboard/touch holds
+      btnManual.addEventListener('click', toggle);
+      btnClose.addEventListener('click', () => exit(true));
+      btnAction.addEventListener('click', tryAction);
+      btnCenter.addEventListener('click', () => {
+        if (!active) return;
+        centeringTrolley = true;
+        showToast('🎯 Centrowanie wózka na promieniu lotnisk...', false, 1.8);
+      });
+
+      padKeyEls.forEach((el) => {
+        const k = el.dataset.mkey;
+        const down = (e) => { e.preventDefault(); btnHeld[k] = true; syncKeyHighlights(); };
+        const up = () => { btnHeld[k] = false; syncKeyHighlights(); };
+        el.addEventListener('pointerdown', down);
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointerleave', up);
+        el.addEventListener('pointercancel', up);
+      });
+
+      const keyMap = {
+        KeyA: 'left', ArrowLeft: 'left',
+        KeyD: 'right', ArrowRight: 'right',
+        KeyW: 'up', ArrowUp: 'up',
+        KeyS: 'down', ArrowDown: 'down',
+        KeyQ: 'trolleyIn',
+        KeyE: 'trolleyOut'
+      };
+
+      window.addEventListener('keydown', (e) => {
+        if (!active || e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (keyMap[e.code]) {
+          e.preventDefault();
+          keys[keyMap[e.code]] = true;
+          syncKeyHighlights();
+        } else if (e.code === 'Space') {
+          e.preventDefault();
+          if (!e.repeat) tryAction();
+        } else if (e.code === 'Tab') {
+          e.preventDefault();
+          if (!e.repeat) selectCrane(craneIdx + 1);
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (keyMap[e.code]) {
+          keys[keyMap[e.code]] = false;
+          syncKeyHighlights();
+        }
+      });
+
+      window.addEventListener('blur', clearInputs);
+
+      return {
+        enter,
+        exit,
+        toggle,
+        restartMission,
+        selectCrane,
+        tryAction,
+        stepAndApply,
+        isActive: () => active,
+        getScore: () => score,
+        getVisitedCount: () => visited.size,
+        isStopVisited: (i) => visited.has(i),
+        getKinematics: () => lastKinematics,
+        getState: () => ({
+          active,
+          craneIdx,
+          att,
+          loc,
+          score,
+          finaleActive,
+          a: a.slice(),
+          h: h.slice(),
+          tDist: tDist.slice()
+        })
+      };
+    }
+
+    const manualCtrl = createManualController();
+    window.__manual = manualCtrl;
 
     // -------------------------------------------------------------------------
     // 12. Main Render Loop (120 Hz Substeps + Dynamic Shadow Frustum + FPS Guard)
@@ -6568,60 +7548,83 @@
       const dt = Math.max(0, Math.min(0.05, (now - lastTime) / 1000));
       lastTime = now;
 
-      if (isPlaying && dt > 0) {
-        const simDt = dt * speedMultiplier;
-        const steps = Math.max(1, Math.round(simDt * 120));
-        const subDt = simDt / steps;
-        for (let i = 0; i < steps; i++) {
-          stepPhysics(simTime, subDt);
-          simTime += subDt;
-        }
-        if (simTime > TOTAL_DURATION) seek(0);
-      }
+      let state;
+      if (manualCtrl.isActive()) {
+        state = manualCtrl.stepAndApply(dt);
+        updateHUD(state);
 
-      const state = applyState(simTime, isPlaying ? dt * speedMultiplier : 0, isPlaying);
-      updateHUD(state);
-
-      // Feed real-time physical kinematics into the Procedural Web Audio Engine
-      {
-        const eps = 1 / 60;
-        const tA = Math.max(0, simTime - eps);
-        const tB = Math.min(TOTAL_DURATION, simTime + eps);
-        const span = Math.max(1e-4, tB - tA);
-        const sA = stateAt(tA).S;
-        const sB = stateAt(tB).S;
-        let maxHoistSpeed = 0;
-        let hoistDir = 0;
-        let maxSlewTipSpeed = 0;
-        let maxSway = 0;
-        for (let i = 0; i < cranes.length; i++) {
-          const c = cranes[i];
-          const dh = (sB['h' + (i + 1)] - sA['h' + (i + 1)]) / span * speedMultiplier;
-          if (Math.abs(dh) > maxHoistSpeed) {
-            maxHoistSpeed = Math.abs(dh);
-            hoistDir = dh;
-          }
-          const da = wrapAngle(sB['a' + (i + 1)] - sA['a' + (i + 1)]) / span * speedMultiplier;
-          const tipV = Math.abs(da) * c.trolleyDist;
-          if (tipV > maxSlewTipSpeed) maxSlewTipSpeed = tipV;
-          const sway = pend[i] ? pend[i].o.length() / Math.max(0.15, c.height) : 0;
-          if (sway > maxSway) maxSway = sway;
-        }
+        const kin = manualCtrl.getKinematics();
         const activeCrane = cranes[state.step.legIdx ?? 0] || cranes[0];
         audioEngine.update({
-          paused: !isPlaying,
-          speedMultiplier,
-          hoistSpeed: maxHoistSpeed,
-          hoistDir,
-          slewTipSpeed: maxSlewTipSpeed,
+          paused: false,
+          speedMultiplier: 1.0,
+          hoistSpeed: kin.hoistSpeed,
+          hoistDir: kin.hoistDir,
+          slewTipSpeed: kin.slewTipSpeed,
           planeSpeed: planeInfo.speed,
           planeAlt: planeInfo.alt,
-          pendulumSway: maxSway,
+          pendulumSway: kin.maxSway,
           isLoaded: state.S.att > 0,
           camAlt: Math.max(0, camera.position.length() - EARTH_RADIUS),
           camToPlane: camera.position.distanceTo(planeInfo.pos),
           camToCrane: activeCrane ? camera.position.distanceTo(activeCrane.hookGroup.position) : 10
         });
+      } else {
+        if (isPlaying && dt > 0) {
+          const simDt = dt * speedMultiplier;
+          const steps = Math.max(1, Math.round(simDt * 120));
+          const subDt = simDt / steps;
+          for (let i = 0; i < steps; i++) {
+            stepPhysics(simTime, subDt);
+            simTime += subDt;
+          }
+          if (simTime > TOTAL_DURATION) seek(0);
+        }
+
+        state = applyState(simTime, isPlaying ? dt * speedMultiplier : 0, isPlaying);
+        updateHUD(state);
+
+        // Feed real-time physical kinematics into the Procedural Web Audio Engine
+        {
+          const eps = 1 / 60;
+          const tA = Math.max(0, simTime - eps);
+          const tB = Math.min(TOTAL_DURATION, simTime + eps);
+          const span = Math.max(1e-4, tB - tA);
+          const sA = stateAt(tA).S;
+          const sB = stateAt(tB).S;
+          let maxHoistSpeed = 0;
+          let hoistDir = 0;
+          let maxSlewTipSpeed = 0;
+          let maxSway = 0;
+          for (let i = 0; i < cranes.length; i++) {
+            const c = cranes[i];
+            const dh = (sB['h' + (i + 1)] - sA['h' + (i + 1)]) / span * speedMultiplier;
+            if (Math.abs(dh) > maxHoistSpeed) {
+              maxHoistSpeed = Math.abs(dh);
+              hoistDir = dh;
+            }
+            const da = wrapAngle(sB['a' + (i + 1)] - sA['a' + (i + 1)]) / span * speedMultiplier;
+            const tipV = Math.abs(da) * c.trolleyDist;
+            if (tipV > maxSlewTipSpeed) maxSlewTipSpeed = tipV;
+            const sway = pend[i] ? pend[i].o.length() / Math.max(0.15, c.height) : 0;
+            if (sway > maxSway) maxSway = sway;
+          }
+          const activeCrane = cranes[state.step.legIdx ?? 0] || cranes[0];
+          audioEngine.update({
+            paused: !isPlaying,
+            speedMultiplier,
+            hoistSpeed: maxHoistSpeed,
+            hoistDir,
+            slewTipSpeed: maxSlewTipSpeed,
+            planeSpeed: planeInfo.speed,
+            planeAlt: planeInfo.alt,
+            pendulumSway: maxSway,
+            isLoaded: state.S.att > 0,
+            camAlt: Math.max(0, camera.position.length() - EARTH_RADIUS),
+            camToPlane: camera.position.distanceTo(planeInfo.pos),
+            camToCrane: activeCrane ? camera.position.distanceTo(activeCrane.hookGroup.position) : 10
+          });
+        }
       }
 
       // Drift volumetric clouds, auroras, ocean wakes, high-speed trails & star scintillation
@@ -6630,7 +7633,9 @@
       for (const u of cloudShellUniformsList) u.uTime.value = sec;
       if (auroraUniforms) auroraUniforms.uTime.value = sec;
       for (const u of rigWakeUniformsList) u.uTime.value = sec;
-      highSpeedVFX.update(isPlaying ? dt * speedMultiplier : 0, sec, state.S.att > 0, routeScale, isPlaying);
+      const vfxActive = manualCtrl.isActive() ? true : isPlaying;
+      const vfxDt = manualCtrl.isActive() ? dt : (isPlaying ? dt * speedMultiplier : 0);
+      highSpeedVFX.update(vfxDt, sec, state.S.att > 0, routeScale, vfxActive);
       cumulusPuffGroup.rotation.y += dt * 0.004;
 
       for (const ring of holoRings) {
