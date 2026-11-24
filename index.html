@@ -1347,6 +1347,7 @@
       <button class="preset-chip" data-preset="HND,SFJ,CDG">Tokio → Grenlandia → Paryż</button>
       <button class="preset-chip" data-preset="WAW,LHR,JFK">Warszawa → Londyn → Nowy Jork</button>
       <button class="preset-chip" data-preset="WAW,DXB,HND,LAX,JFK,WAW">Dookoła świata (6)</button>
+      <button class="preset-chip" data-preset="SFO,CAI,DXB,SYD">Cuda świata (4)</button>
     </div>
     <div class="route-stops-list" id="route-stops-list"></div>
     <div class="airport-search-wrap">
@@ -3905,6 +3906,780 @@
       routeGroup.add(g);
     }
 
+    // Shared helpers for Signature International Hub Landmarks
+    function makeLandmarkGroup(normal, scale, offEast = 0.065, offNorth = 0.050) {
+      const s = Math.max(0.24, scale);
+      const f = surfaceFrame(normal);
+      const n = normal.clone()
+        .addScaledVector(f.east, offEast * s)
+        .addScaledVector(f.north, offNorth * s)
+        .normalize();
+      const { quat } = surfaceFrame(n);
+      const g = new THREE.Group();
+      g.position.copy(n.clone().multiplyScalar(EARTH_RADIUS));
+      g.quaternion.copy(quat);
+      g.scale.setScalar(s);
+      return g;
+    }
+
+    function createFacadeWindowTex(baseHex, litColors, cols = 12, rows = 24, litRatio = 0.55) {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = baseHex;
+      ctx.fillRect(0, 0, c.width, c.height);
+      const cw = c.width / cols;
+      const rh = c.height / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let col = 0; col < cols; col++) {
+          const hash = Math.sin(r * 12.9898 + col * 78.233) * 43758.5453;
+          const frac = hash - Math.floor(hash);
+          if (frac < litRatio) {
+            ctx.fillStyle = litColors[(r * 3 + col * 5) % litColors.length];
+            ctx.fillRect(col * cw + cw * 0.22, r * rh + rh * 0.26, cw * 0.56, rh * 0.48);
+          }
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createClockDialTex(bgHex = '#fef3c7', rimHex = '#b45309', handHex = '#1e293b') {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 128, 128);
+      ctx.beginPath();
+      ctx.arc(64, 64, 58, 0, Math.PI * 2);
+      ctx.fillStyle = bgHex;
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = rimHex;
+      ctx.stroke();
+
+      // 12 hour ticks
+      ctx.strokeStyle = handHex;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const rIn = (i % 3 === 0) ? 38 : 44;
+        ctx.lineWidth = (i % 3 === 0) ? 4 : 2.5;
+        ctx.beginPath();
+        ctx.moveTo(64 + Math.cos(a) * rIn, 64 + Math.sin(a) * rIn);
+        ctx.lineTo(64 + Math.cos(a) * 51, 64 + Math.sin(a) * 51);
+        ctx.stroke();
+      }
+      // Classic 10:10 hands
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.moveTo(64, 64);
+      ctx.lineTo(64 - 24, 64 - 16);
+      ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(64, 64);
+      ctx.lineTo(64 + 32, 64 - 22);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(64, 64, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = rimHex;
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // Warsaw (WAW): Pałac Kultury i Nauki (PKiN) with Millennium Clock & Spire
+    function createWarsawPKiN(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const plazaMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.82, metalness: 0.18 });
+      const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd9cfb8, roughness: 0.62, metalness: 0.12 });
+      const trimMat = new THREE.MeshStandardMaterial({ color: 0xefe7d6, roughness: 0.52, metalness: 0.16 });
+      const spireMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.35, metalness: 0.72 });
+      const warmGlowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.65, 1.32, 0.62), toneMapped: false });
+
+      const winTex = createFacadeWindowTex('#cfc3aa', ['#fef3c7', '#fde68a', '#e0f2fe', '#94a3b8'], 10, 22, 0.48);
+      const facadeMat = new THREE.MeshStandardMaterial({
+        map: winTex,
+        emissiveMap: winTex,
+        emissive: new THREE.Color(0xffe8b0),
+        emissiveIntensity: 0.52,
+        roughness: 0.58,
+        metalness: 0.14
+      });
+
+      // Plac Defilad base
+      const plaza = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.12, 16), plazaMat);
+      plaza.position.y = -0.02;
+      plaza.receiveShadow = true;
+      g.add(plaza);
+
+      // Cruciform lower podium + 4 corner wings
+      const podA = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.11, 0.145), facadeMat);
+      podA.position.y = 0.085;
+      podA.castShadow = true;
+      const podB = new THREE.Mesh(new THREE.BoxGeometry(0.145, 0.11, 0.30), facadeMat);
+      podB.position.y = 0.085;
+      podB.castShadow = true;
+      g.add(podA, podB);
+
+      const wingCorners = [[-0.105, -0.105], [0.105, -0.105], [0.105, 0.105], [-0.105, 0.105]];
+      for (const [wx, wz] of wingCorners) {
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(0.078, 0.14, 0.078), facadeMat);
+        wing.position.set(wx, 0.10, wz);
+        wing.castShadow = true;
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.045, 4), stoneMat);
+        cap.position.set(wx, 0.192, wz);
+        cap.rotation.y = Math.PI / 4;
+        g.add(wing, cap);
+      }
+
+      // Stepped central tower tiers
+      const tier1 = new THREE.Mesh(new THREE.BoxGeometry(0.145, 0.24, 0.145), facadeMat);
+      tier1.position.y = 0.25;
+      tier1.castShadow = true;
+      const ledge1 = new THREE.Mesh(new THREE.BoxGeometry(0.162, 0.018, 0.162), trimMat);
+      ledge1.position.y = 0.375;
+
+      const tier2 = new THREE.Mesh(new THREE.BoxGeometry(0.106, 0.19, 0.106), facadeMat);
+      tier2.position.y = 0.47;
+      tier2.castShadow = true;
+      const terraceGlow = new THREE.Mesh(new THREE.BoxGeometry(0.118, 0.012, 0.118), warmGlowMat);
+      terraceGlow.position.y = 0.40;
+      const ledge2 = new THREE.Mesh(new THREE.BoxGeometry(0.122, 0.016, 0.122), trimMat);
+      ledge2.position.y = 0.568;
+
+      // 4 corner turret pinnacles on tier 1 & 2
+      for (const [cx, cz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const pin1 = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.055, 4), trimMat);
+        pin1.position.set(cx * 0.074, 0.405, cz * 0.074);
+        pin1.rotation.y = Math.PI / 4;
+        const pin2 = new THREE.Mesh(new THREE.ConeGeometry(0.011, 0.042, 4), trimMat);
+        pin2.position.set(cx * 0.054, 0.592, cz * 0.054);
+        pin2.rotation.y = Math.PI / 4;
+        g.add(pin1, pin2);
+      }
+
+      // Millennium Clock drum (4 faces)
+      const clockDrum = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.11, 0.076), stoneMat);
+      clockDrum.position.y = 0.625;
+      clockDrum.castShadow = true;
+      const clockTex = createClockDialTex('#fffbeb', '#d97706', '#0f172a');
+      const clockMat = new THREE.MeshBasicMaterial({ map: clockTex, color: new THREE.Color(1.45, 1.38, 1.15), toneMapped: false });
+      const clockGeo = new THREE.CircleGeometry(0.025, 16);
+      const clockFaces = [
+        { pos: [0, 0.632, 0.040], rot: [0, 0, 0] },
+        { pos: [0, 0.632, -0.040], rot: [0, Math.PI, 0] },
+        { pos: [0.040, 0.632, 0], rot: [0, Math.PI / 2, 0] },
+        { pos: [-0.040, 0.632, 0], rot: [0, -Math.PI / 2, 0] }
+      ];
+      for (const cf of clockFaces) {
+        const dial = new THREE.Mesh(clockGeo, clockMat);
+        dial.position.set(...cf.pos);
+        dial.rotation.set(...cf.rot);
+        g.add(dial);
+      }
+
+      // Lantern crown + signature needle spire
+      const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.040, 0.095, 8), trimMat);
+      lantern.position.y = 0.725;
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.018, 0.24, 8), spireMat);
+      spire.position.y = 0.885;
+      spire.castShadow = true;
+
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), redOnMat);
+      beacon.position.y = 1.015;
+      blinkingBeacons.push(beacon);
+
+      g.add(tier1, ledge1, tier2, terraceGlow, ledge2, clockDrum, lantern, spire, beacon);
+      routeGroup.add(g);
+    }
+
+    // London (LHR): Elizabeth Tower (Big Ben) + Palace of Westminster
+    function createLondonBigBen(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const plinthMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.78, metalness: 0.22 });
+      const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd4b982, roughness: 0.58, metalness: 0.14 });
+      const slateMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.48, metalness: 0.35 });
+      const goldMat = new THREE.MeshStandardMaterial({ color: 0xf5c542, roughness: 0.32, metalness: 0.76 });
+      const lanternMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.65, 0.72), toneMapped: false });
+
+      const gothicWinTex = createFacadeWindowTex('#a88e5c', ['#fde68a', '#fbbf24', '#fef3c7'], 14, 16, 0.56);
+      const hallMat = new THREE.MeshStandardMaterial({
+        map: gothicWinTex,
+        emissiveMap: gothicWinTex,
+        emissive: new THREE.Color(0xffd27a),
+        emissiveIntensity: 0.72,
+        roughness: 0.55,
+        metalness: 0.15
+      });
+
+      // Thames Embankment plinth
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.23), plinthMat);
+      plinth.position.y = -0.015;
+      plinth.receiveShadow = true;
+      g.add(plinth);
+
+      // Elizabeth Tower (Big Ben) shaft at x = -0.105
+      const tx = -0.105;
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.094, 0.42, 0.094), stoneMat);
+      shaft.position.set(tx, 0.24, 0);
+      shaft.castShadow = true;
+      g.add(shaft);
+
+      // Vertical corner stone pilasters
+      for (const [px, pz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.44, 0.016), stoneMat);
+        pil.position.set(tx + px * 0.044, 0.25, pz * 0.044);
+        g.add(pil);
+      }
+
+      // Golden cornice & recessed clock belfry
+      const cornice = new THREE.Mesh(new THREE.BoxGeometry(0.116, 0.018, 0.116), goldMat);
+      cornice.position.set(tx, 0.455, 0);
+      const belfry = new THREE.Mesh(new THREE.BoxGeometry(0.108, 0.115, 0.108), stoneMat);
+      belfry.position.set(tx, 0.52, 0);
+      belfry.castShadow = true;
+      const belfryTop = new THREE.Mesh(new THREE.BoxGeometry(0.118, 0.016, 0.118), goldMat);
+      belfryTop.position.set(tx, 0.582, 0);
+      g.add(cornice, belfry, belfryTop);
+
+      // 4 glowing warm-amber Big Ben clock dials
+      const dialTex = createClockDialTex('#fef08a', '#92400e', '#0f172a');
+      const dialMat = new THREE.MeshBasicMaterial({ map: dialTex, color: new THREE.Color(1.65, 1.45, 0.95), toneMapped: false });
+      const dialGeo = new THREE.CircleGeometry(0.041, 20);
+      const faces = [
+        { pos: [tx, 0.52, 0.056], rot: [0, 0, 0] },
+        { pos: [tx, 0.52, -0.056], rot: [0, Math.PI, 0] },
+        { pos: [tx + 0.056, 0.52, 0], rot: [0, Math.PI / 2, 0] },
+        { pos: [tx - 0.056, 0.52, 0], rot: [0, -Math.PI / 2, 0] }
+      ];
+      for (const f of faces) {
+        const d = new THREE.Mesh(dialGeo, dialMat);
+        d.position.set(...f.pos);
+        d.rotation.set(...f.rot);
+        g.add(d);
+      }
+
+      // Steep Gothic dark-slate spire + Ayrton Light lantern
+      const spireRoof = new THREE.Mesh(new THREE.ConeGeometry(0.078, 0.25, 4), slateMat);
+      spireRoof.position.set(tx, 0.715, 0);
+      spireRoof.rotation.y = Math.PI / 4;
+      spireRoof.castShadow = true;
+      const ayrton = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.020, 0.042, 8), lanternMat);
+      ayrton.position.set(tx, 0.625, 0);
+      const finial = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.009, 0.075, 6), goldMat);
+      finial.position.set(tx, 0.865, 0);
+      const topOrb = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 8), lanternMat);
+      topOrb.position.set(tx, 0.905, 0);
+      g.add(spireRoof, ayrton, finial, topOrb);
+
+      // Palace of Westminster hall wing + Victoria Tower
+      const hall = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.11), hallMat);
+      hall.position.set(0.045, 0.115, 0);
+      hall.castShadow = true;
+      const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.08, 0.22, 3), slateMat);
+      roof.position.set(0.045, 0.225, 0);
+      roof.rotation.z = Math.PI / 2;
+      roof.rotation.x = Math.PI / 6;
+      const vicTower = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.28, 0.068), stoneMat);
+      vicTower.position.set(0.155, 0.175, 0);
+      vicTower.castShadow = true;
+      const vicCap = new THREE.Mesh(new THREE.ConeGeometry(0.046, 0.065, 4), slateMat);
+      vicCap.position.set(0.155, 0.345, 0);
+      vicCap.rotation.y = Math.PI / 4;
+      g.add(hall, roof, vicTower, vicCap);
+
+      routeGroup.add(g);
+    }
+
+    // New York (JFK): Empire State Building + One WTC + Chrysler-Style Crown
+    function createNewYorkSkyline(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const plinthMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.72, metalness: 0.32 });
+      const silverMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.30, metalness: 0.78 });
+      const wtcTex = createFacadeWindowTex('#16314f', ['#7dd3fc', '#bae6fd', '#e0f2fe', '#38bdf8'], 10, 32, 0.52);
+      const wtcGlassMat = new THREE.MeshStandardMaterial({
+        map: wtcTex,
+        emissiveMap: wtcTex,
+        emissive: new THREE.Color(0x60a5fa),
+        emissiveIntensity: 0.62,
+        color: 0xcbeafe,
+        roughness: 0.16,
+        metalness: 0.86
+      });
+      const whiteCrownMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.95, 2.1), toneMapped: false });
+      const cyanCrownMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.32, 1.75, 2.2), toneMapped: false });
+
+      const esbTex = createFacadeWindowTex('#475569', ['#fef3c7', '#e0f2fe', '#f8fafc', '#bae6fd'], 12, 28, 0.62);
+      const esbMat = new THREE.MeshStandardMaterial({
+        map: esbTex,
+        emissiveMap: esbTex,
+        emissive: new THREE.Color(0xfff4d6),
+        emissiveIntensity: 0.78,
+        roughness: 0.45,
+        metalness: 0.36
+      });
+
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.12, 16), plinthMat);
+      plinth.position.y = -0.02;
+      plinth.receiveShadow = true;
+      g.add(plinth);
+
+      // Empire State Building (center-left)
+      const ex = -0.055, ez = 0.0;
+      const esbBase = new THREE.Mesh(new THREE.BoxGeometry(0.145, 0.15, 0.115), esbMat);
+      esbBase.position.set(ex, 0.11, ez);
+      esbBase.castShadow = true;
+      const esbMid = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.34, 0.088), esbMat);
+      esbMid.position.set(ex, 0.35, ez);
+      esbMid.castShadow = true;
+      const esbUpper = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.15, 0.064), esbMat);
+      esbUpper.position.set(ex, 0.59, ez);
+      esbUpper.castShadow = true;
+      const esbCrownGlow = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.022, 0.068), whiteCrownMat);
+      esbCrownGlow.position.set(ex, 0.655, ez);
+      const esbMastBase = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.032, 0.11, 10), silverMat);
+      esbMastBase.position.set(ex, 0.72, ez);
+      const esbSpire = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.011, 0.25, 8), silverMat);
+      esbSpire.position.set(ex, 0.895, ez);
+      const esbBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), redOnMat);
+      esbBeacon.position.set(ex, 1.03, ez);
+      blinkingBeacons.push(esbBeacon);
+      g.add(esbBase, esbMid, esbUpper, esbCrownGlow, esbMastBase, esbSpire, esbBeacon);
+
+      // One World Trade Center (interleaved chamfered blue-silver glass prism)
+      const wx = 0.092, wz = -0.035;
+      const wtcA = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.056, 0.62, 4), wtcGlassMat);
+      wtcA.position.set(wx, 0.34, wz);
+      wtcA.castShadow = true;
+      const wtcB = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.038, 0.60, 4), wtcGlassMat);
+      wtcB.position.set(wx, 0.34, wz);
+      wtcB.rotation.y = Math.PI / 4;
+      const wtcRing = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.006, 8, 20), cyanCrownMat);
+      wtcRing.rotation.x = Math.PI / 2;
+      wtcRing.position.set(wx, 0.655, wz);
+      const wtcSpire = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.009, 0.22, 8), silverMat);
+      wtcSpire.position.set(wx, 0.77, wz);
+      const wtcTip = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 8), cyanCrownMat);
+      wtcTip.position.set(wx, 0.885, wz);
+      g.add(wtcA, wtcB, wtcRing, wtcSpire, wtcTip);
+
+      // Chrysler-inspired Art-Deco terraced crown tower (front-right)
+      const cx = 0.055, cz = 0.095;
+      const chrBody = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.36, 0.072), esbMat);
+      chrBody.position.set(cx, 0.21, cz);
+      chrBody.castShadow = true;
+      g.add(chrBody);
+      for (let t = 0; t < 4; t++) {
+        const w = 0.062 - t * 0.012;
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.52, w * 0.72, 0.042, 8), silverMat);
+        cap.position.set(cx, 0.41 + t * 0.036, cz);
+        const arc = new THREE.Mesh(new THREE.TorusGeometry(w * 0.62, 0.004, 6, 16), whiteCrownMat);
+        arc.rotation.x = Math.PI / 2;
+        arc.position.set(cx, 0.415 + t * 0.036, cz);
+        g.add(cap, arc);
+      }
+      const chrNeedle = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.007, 0.12, 6), silverMat);
+      chrNeedle.position.set(cx, 0.60, cz);
+      g.add(chrNeedle);
+
+      routeGroup.add(g);
+    }
+
+    // Dubai (DXB): Burj Khalifa Y-Shaped Spiraling Megatower + Dubai Fountain
+    function createDubaiBurjKhalifa(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const plazaMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.62, metalness: 0.35 });
+      const glassTex = createFacadeWindowTex('#1e3a52', ['#e0f2fe', '#7dd3fc', '#f8fafc', '#38bdf8'], 10, 32, 0.60);
+      const burjMat = new THREE.MeshStandardMaterial({
+        map: glassTex,
+        emissiveMap: glassTex,
+        emissive: new THREE.Color(0x93c5fd),
+        emissiveIntensity: 0.68,
+        color: 0xdbeafe,
+        roughness: 0.18,
+        metalness: 0.88
+      });
+      const spireMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.22, metalness: 0.92 });
+      const ledCyanMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 1.9, 2.2), toneMapped: false });
+      const ledWhiteMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 2.05, 2.15), toneMapped: false });
+
+      // Fountain plaza + glowing turquoise pool ring
+      const plaza = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.12, 18), plazaMat);
+      plaza.position.y = -0.02;
+      plaza.receiveShadow = true;
+      const fountainPool = new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.013, 8, 28), ledCyanMat);
+      fountainPool.rotation.x = Math.PI / 2;
+      fountainPool.position.y = 0.044;
+      g.add(plaza, fountainPool);
+
+      // Central hexagonal spire core rising to y = 1.04
+      const core = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.056, 1.00, 6), burjMat);
+      core.position.y = 0.53;
+      core.castShadow = true;
+      g.add(core);
+
+      // 3 Y-plan wings with authentic spiraling stepped setbacks
+      const wingAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+      for (let tier = 0; tier < 6; tier++) {
+        for (let w = 0; w < 3; w++) {
+          const stepIdx = tier * 3 + w;
+          const h = Math.max(0.14, 0.96 - stepIdx * 0.046);
+          const rad = Math.max(0.016, 0.046 - stepIdx * 0.0017);
+          const dist = Math.max(0.018, 0.095 - stepIdx * 0.0044);
+          const a = wingAngles[w];
+          const lobe = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.82, rad, h, 8), burjMat);
+          lobe.position.set(Math.cos(a) * dist, 0.04 + h * 0.5, Math.sin(a) * dist);
+          lobe.castShadow = true;
+          g.add(lobe);
+        }
+      }
+
+      // Signature HDR LED horizontal façade rings along setbacks
+      const ringSpecs = [
+        { y: 0.24, r: 0.105, mat: ledCyanMat },
+        { y: 0.46, r: 0.078, mat: ledWhiteMat },
+        { y: 0.68, r: 0.056, mat: ledCyanMat },
+        { y: 0.88, r: 0.036, mat: ledWhiteMat }
+      ];
+      for (const rs of ringSpecs) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(rs.r, 0.0055, 8, 24), rs.mat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = rs.y;
+        g.add(ring);
+      }
+
+      // Ultra-tall telescopic needle spire (tallest landmark on the globe!)
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.015, 0.25, 8), spireMat);
+      spire.position.y = 1.14;
+      spire.castShadow = true;
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), redOnMat);
+      beacon.position.y = 1.275;
+      blinkingBeacons.push(beacon);
+      g.add(spire, beacon);
+
+      routeGroup.add(g);
+    }
+
+    // Los Angeles (LAX): Googie Theme Building + Illuminated HOLLYWOOD Hillside Sign
+    function createLAXThemeBuilding(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const apronMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.78, metalness: 0.22 });
+      const whiteStucco = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.36, metalness: 0.22 });
+      const hillMat = new THREE.MeshStandardMaterial({ color: 0x5c573c, roughness: 0.92, metalness: 0.04 });
+      const podGlassMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.32, 1.75, 2.2), toneMapped: false });
+      const violetGlowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.75, 0.42, 2.15), toneMapped: false });
+
+      // Mid-century plaza apron
+      const apron = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.12, 18), apronMat);
+      apron.position.y = -0.02;
+      apron.receiveShadow = true;
+      g.add(apron);
+
+      // LAX Theme Building centered slightly forward (z = +0.03)
+      const tz = 0.035;
+      const coreStem = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, 0.24, 12), whiteStucco);
+      coreStem.position.set(0, 0.16, tz);
+      coreStem.castShadow = true;
+      g.add(coreStem);
+
+      // Two crossed soaring Googie parabolic arches
+      for (let aIdx = 0; aIdx < 2; aIdx++) {
+        const ang = (aIdx * Math.PI) / 2 + Math.PI / 4;
+        const pts = [];
+        for (let k = -8; k <= 8; k++) {
+          const u = k / 8;
+          const span = u * 0.165;
+          const py = 0.035 + (1 - u * u) * 0.405;
+          pts.push(new THREE.Vector3(Math.cos(ang) * span, py, tz + Math.sin(ang) * span));
+        }
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const arch = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.015, 8, false), whiteStucco);
+        arch.castShadow = true;
+        g.add(arch);
+      }
+
+      // Suspended flying-saucer observation restaurant pod
+      const podSkirt = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.045, 0.028, 20), whiteStucco);
+      podSkirt.position.set(0, 0.225, tz);
+      const podGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.094, 0.094, 0.046, 20), podGlassMat);
+      podGlass.position.set(0, 0.262, tz);
+      const podRoof = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.105, 0.024, 20), whiteStucco);
+      podRoof.position.set(0, 0.296, tz);
+      const uplightRing = new THREE.Mesh(new THREE.TorusGeometry(0.102, 0.006, 8, 24), violetGlowMat);
+      uplightRing.rotation.x = Math.PI / 2;
+      uplightRing.position.set(0, 0.240, tz);
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.008, 0.09, 6), whiteStucco);
+      spire.position.set(0, 0.485, tz);
+      g.add(podSkirt, podGlass, podRoof, uplightRing, spire);
+
+      // Hollywood Hills ridge + illuminated HOLLYWOOD sign behind the Theme Building
+      const hill = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.20, 0.18, 7), hillMat);
+      hill.scale.set(1.65, 1.0, 0.56);
+      hill.position.set(0, 0.095, -0.215);
+      hill.receiveShadow = true;
+      g.add(hill);
+
+      const hc = document.createElement('canvas');
+      hc.width = 256;
+      hc.height = 64;
+      const hctx = hc.getContext('2d');
+      hctx.clearRect(0, 0, 256, 64);
+      hctx.font = '900 34px "Arial Black", Impact, sans-serif';
+      hctx.textAlign = 'center';
+      hctx.textBaseline = 'middle';
+      hctx.fillStyle = '#fffef0';
+      hctx.fillText('HOLLYWOOD', 128, 34);
+      const hTex = new THREE.CanvasTexture(hc);
+      hTex.colorSpace = THREE.SRGBColorSpace;
+
+      const signMat = new THREE.MeshBasicMaterial({
+        map: hTex,
+        transparent: true,
+        color: new THREE.Color(1.9, 1.85, 1.65),
+        side: THREE.DoubleSide,
+        toneMapped: false
+      });
+      const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.082), signMat);
+      signMesh.position.set(0, 0.218, -0.195);
+      signMesh.rotation.x = -0.18;
+      g.add(signMesh);
+
+      routeGroup.add(g);
+    }
+
+    // San Francisco (SFO): Golden Gate Bridge in International Orange
+    function createGoldenGateBridge(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.074, 0.056);
+      const bayMat = new THREE.MeshStandardMaterial({ color: 0x0d2b45, roughness: 0.32, metalness: 0.35 });
+      const concreteMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.82, metalness: 0.12 });
+      const orangeMat = new THREE.MeshStandardMaterial({ color: 0xc83e2b, roughness: 0.44, metalness: 0.38 });
+      const cableMat = new THREE.MeshStandardMaterial({ color: 0xd9533f, roughness: 0.40, metalness: 0.55 });
+      const deckMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.72, metalness: 0.25 });
+      const headLightMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.72, 0.85), toneMapped: false });
+      const tailLightMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.1, 0.28, 0.22), toneMapped: false });
+
+      // Bay base water strip
+      const bay = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.09, 0.18), bayMat);
+      bay.position.y = -0.015;
+      bay.receiveShadow = true;
+      g.add(bay);
+
+      // Twin Art-Deco International Orange towers at x = -0.135 and x = +0.135
+      const towerXs = [-0.135, 0.135];
+      const halfZ = 0.036;
+      const towerTopY = 0.455;
+      for (const tx of towerXs) {
+        const pier = new THREE.Mesh(new THREE.BoxGeometry(0.056, 0.065, 0.11), concreteMat);
+        pier.position.set(tx, 0.055, 0);
+        g.add(pier);
+
+        for (const side of [-1, 1]) {
+          const legLower = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.24, 0.020), orangeMat);
+          legLower.position.set(tx, 0.19, side * halfZ);
+          legLower.castShadow = true;
+          const legUpper = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.18, 0.016), orangeMat);
+          legUpper.position.set(tx, 0.37, side * halfZ);
+          legUpper.castShadow = true;
+          g.add(legLower, legUpper);
+        }
+        // Horizontal Art-Deco portal cross-struts
+        for (const sy of [0.23, 0.325, 0.425]) {
+          const strut = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.018, halfZ * 2 + 0.012), orangeMat);
+          strut.position.set(tx, sy, 0);
+          g.add(strut);
+        }
+        const tipBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), redOnMat);
+        tipBeacon.position.set(tx, towerTopY + 0.018, 0);
+        blinkingBeacons.push(tipBeacon);
+        g.add(tipBeacon);
+      }
+
+      // Suspended roadway deck + warm headlight / ruby taillight traffic ribbons
+      const deckY = 0.172;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.018, 0.058), deckMat);
+      deck.position.y = deckY;
+      deck.castShadow = true;
+      const fascia1 = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.012, 0.008), orangeMat);
+      fascia1.position.set(0, deckY, 0.032);
+      const fascia2 = fascia1.clone();
+      fascia2.position.z = -0.032;
+      const headLine = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.005, 0.006), headLightMat);
+      headLine.position.set(0, deckY + 0.011, 0.012);
+      const tailLine = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.005, 0.006), tailLightMat);
+      tailLine.position.set(0, deckY + 0.011, -0.012);
+      g.add(deck, fascia1, fascia2, headLine, tailLine);
+
+      // Parabolic main suspension cables + vertical suspenders on front & back faces
+      const cableHeightAt = (x) => {
+        const ax = Math.abs(x);
+        if (ax <= 0.135) {
+          const u = ax / 0.135;
+          return 0.205 + u * u * (towerTopY - 0.205);
+        }
+        const u = Math.min(1, (ax - 0.135) / 0.130);
+        return towerTopY - (1 - (1 - u) * (1 - u)) * (towerTopY - deckY);
+      };
+
+      for (const side of [-1, 1]) {
+        const z = side * halfZ;
+        const pts = [];
+        for (let k = -24; k <= 24; k++) {
+          const x = (k / 24) * 0.265;
+          pts.push(new THREE.Vector3(x, cableHeightAt(x), z));
+        }
+        const mainCable = new THREE.Mesh(
+          new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.0052, 6, false),
+          cableMat
+        );
+        g.add(mainCable);
+
+        for (let sx = -0.22; sx <= 0.221; sx += 0.044) {
+          if (Math.abs(Math.abs(sx) - 0.135) < 0.02) continue;
+          const cy = cableHeightAt(sx);
+          const len = cy - deckY;
+          if (len > 0.018) {
+            const susp = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, len, 4), cableMat);
+            susp.position.set(sx, deckY + len * 0.5, z);
+            g.add(susp);
+          }
+        }
+      }
+
+      routeGroup.add(g);
+    }
+
+    // Sydney (SYD): Sydney Opera House Sculptural Sail-Shell Vaults
+    function createSydneyOperaHouse(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.070, 0.052);
+      const harborMat = new THREE.MeshStandardMaterial({ color: 0x0e3b56, roughness: 0.30, metalness: 0.38 });
+      const graniteMat = new THREE.MeshStandardMaterial({ color: 0x3f4754, roughness: 0.78, metalness: 0.18 });
+      const shellMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.26, metalness: 0.18, side: THREE.DoubleSide });
+      const glassGlowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.42, 0.58), toneMapped: false, side: THREE.DoubleSide });
+
+      // Bennelong Point harbor base + stepped granite podium
+      const waterBase = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.29, 0.09, 18), harborMat);
+      waterBase.position.y = -0.02;
+      waterBase.receiveShadow = true;
+      const podium = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.08, 0.25), graniteMat);
+      podium.position.y = 0.055;
+      podium.castShadow = true;
+      podium.receiveShadow = true;
+      const concourse = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.032, 0.19), graniteMat);
+      concourse.position.set(0.02, 0.105, 0);
+      g.add(waterBase, podium, concourse);
+
+      // Helper: sculptural billowing ceramic white sail-shell + warm golden lobby glass
+      const addSail = (x, z, r, sx, sy, sz, rotY, tiltZ, withGlass = true) => {
+        const sail = new THREE.Mesh(
+          new THREE.SphereGeometry(r, 14, 10, 0, Math.PI * 0.66, 0.14, Math.PI * 0.50),
+          shellMat
+        );
+        sail.scale.set(sx, sy, sz);
+        sail.position.set(x, 0.115, z);
+        sail.rotation.set(0, rotY, tiltZ);
+        sail.castShadow = true;
+        g.add(sail);
+        if (withGlass) {
+          const glass = new THREE.Mesh(
+            new THREE.CircleGeometry(r * 0.68, 12, 0, Math.PI),
+            glassGlowMat
+          );
+          glass.scale.set(sx * 0.86, sy * 0.78, 1);
+          glass.position.set(x + Math.cos(rotY) * r * 0.16, 0.12, z - Math.sin(rotY) * r * 0.16);
+          glass.rotation.y = rotY + Math.PI / 2;
+          g.add(glass);
+        }
+      };
+
+      // Concert Hall cluster (4 soaring overlapping shells)
+      addSail(-0.085, -0.042, 0.105, 1.05, 1.55, 0.82, 0.15, -0.20, true);
+      addSail(-0.025, -0.042, 0.128, 1.05, 1.72, 0.85, 0.15, -0.22, true);
+      addSail(0.042, -0.042, 0.112, 1.02, 1.52, 0.82, 0.15, -0.22, true);
+      addSail(0.098, -0.042, 0.086, 0.96, 1.25, 0.78, Math.PI + 0.15, 0.18, false);
+
+      // Joan Sutherland Theatre cluster (3 shells beside it)
+      addSail(-0.020, 0.052, 0.092, 1.0, 1.38, 0.78, 0.10, -0.19, true);
+      addSail(0.042, 0.052, 0.106, 1.0, 1.50, 0.80, 0.10, -0.21, true);
+      addSail(0.095, 0.052, 0.078, 0.94, 1.15, 0.75, Math.PI + 0.10, 0.18, false);
+
+      // Bennelong forecourt restaurant shell
+      addSail(-0.150, 0.032, 0.068, 0.92, 1.12, 0.74, -0.35, -0.18, true);
+
+      routeGroup.add(g);
+    }
+
+    // Cairo (CAI): Great Pyramids of Giza + Golden Capstone + Miniature Sphinx
+    function createCairoPyramids(normal, scale = 1.0) {
+      const g = makeLandmarkGroup(normal, scale, 0.068, 0.052);
+      const sandMat = new THREE.MeshStandardMaterial({ color: 0xc9a86c, roughness: 0.92, metalness: 0.04 });
+      const limestoneMat = new THREE.MeshStandardMaterial({ color: 0xdcb97b, roughness: 0.76, metalness: 0.08, flatShading: true });
+      const limestoneDark = new THREE.MeshStandardMaterial({ color: 0xcba465, roughness: 0.80, metalness: 0.06, flatShading: true });
+      const goldCapMat = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+        emissive: new THREE.Color(0xd97706),
+        emissiveIntensity: 0.45,
+        roughness: 0.24,
+        metalness: 0.78,
+        flatShading: true
+      });
+      const uplightMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.75, 1.25, 0.45), toneMapped: false });
+
+      // Giza desert sandstone plateau
+      const plateau = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.31, 0.11, 16), sandMat);
+      plateau.position.y = -0.015;
+      plateau.receiveShadow = true;
+      g.add(plateau);
+
+      // Khufu (Great Pyramid)
+      const khufu = new THREE.Mesh(new THREE.ConeGeometry(0.140, 0.255, 4), limestoneMat);
+      khufu.position.set(-0.072, 0.162, -0.055);
+      khufu.rotation.y = Math.PI / 4;
+      khufu.castShadow = true;
+      khufu.receiveShadow = true;
+      const khufuGlow = new THREE.Mesh(new THREE.BoxGeometry(0.195, 0.008, 0.195), uplightMat);
+      khufuGlow.position.set(-0.072, 0.042, -0.055);
+      g.add(khufu, khufuGlow);
+
+      // Khafre with gleaming golden pyramidion capstone
+      const khafre = new THREE.Mesh(new THREE.ConeGeometry(0.118, 0.230, 4), limestoneDark);
+      khafre.position.set(0.056, 0.150, 0.015);
+      khafre.rotation.y = Math.PI / 4;
+      khafre.castShadow = true;
+      khafre.receiveShadow = true;
+      const capstone = new THREE.Mesh(new THREE.ConeGeometry(0.036, 0.070, 4), goldCapMat);
+      capstone.position.set(0.056, 0.233, 0.015);
+      capstone.rotation.y = Math.PI / 4;
+      const khafreGlow = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.008, 0.165), uplightMat);
+      khafreGlow.position.set(0.056, 0.042, 0.015);
+      g.add(khafre, capstone, khafreGlow);
+
+      // Menkaure (smaller southern pyramid)
+      const menkaure = new THREE.Mesh(new THREE.ConeGeometry(0.074, 0.145, 4), limestoneMat);
+      menkaure.position.set(0.132, 0.108, 0.098);
+      menkaure.rotation.y = Math.PI / 4;
+      menkaure.castShadow = true;
+      g.add(menkaure);
+
+      // Miniature Great Sphinx guarding the forecourt
+      const sphinxBody = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.032, 0.034), limestoneMat);
+      sphinxBody.position.set(-0.092, 0.056, 0.112);
+      const sphinxPaws = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.014, 0.036), limestoneMat);
+      sphinxPaws.position.set(-0.038, 0.047, 0.112);
+      const sphinxHead = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.036, 4), goldCapMat);
+      sphinxHead.position.set(-0.062, 0.084, 0.112);
+      sphinxHead.rotation.y = Math.PI / 4;
+      g.add(sphinxBody, sphinxPaws, sphinxHead);
+
+      routeGroup.add(g);
+    }
+
     function createOffshoreRig(normal, accentHex, scale = 1.0) {
       const { quat } = surfaceFrame(normal);
       const g = new THREE.Group();
@@ -5282,6 +6057,7 @@
       { iata: 'LHR', icao: 'EGLL', name: 'London Heathrow Airport', city: 'London', displayCity: 'Londyn', country: 'GB', lat: 51.4700, lon: -0.4543 },
       { iata: 'JFK', icao: 'KJFK', name: 'John F. Kennedy International Airport', city: 'New York', displayCity: 'Nowy Jork', country: 'US', lat: 40.6398, lon: -73.7789 },
       { iata: 'LAX', icao: 'KLAX', name: 'Los Angeles International Airport', city: 'Los Angeles', displayCity: 'Los Angeles', country: 'US', lat: 33.9425, lon: -118.4081 },
+      { iata: 'SFO', icao: 'KSFO', name: 'San Francisco International Airport', city: 'San Francisco', displayCity: 'San Francisco', country: 'US', lat: 37.6190, lon: -122.3748 },
       { iata: 'ORD', icao: 'KORD', name: "O'Hare International Airport", city: 'Chicago', displayCity: 'Chicago', country: 'US', lat: 41.9786, lon: -87.9048 },
       { iata: 'YYZ', icao: 'CYYZ', name: 'Toronto Pearson International Airport', city: 'Toronto', displayCity: 'Toronto', country: 'CA', lat: 43.6772, lon: -79.6306 },
       { iata: 'KEF', icao: 'BIKF', name: 'Keflavik International Airport', city: 'Keflavik', displayCity: 'Reykjavik', country: 'IS', lat: 63.9850, lon: -22.6056 },
@@ -5451,6 +6227,7 @@
 
     let activeStops = [];
     let stopNormals = [];
+    let stopLandmarks = [];
     let pads = [];
     let cranes = [];
     let routeArcs = [];
@@ -5474,15 +6251,27 @@
         destinationFireworks.dispose();
         destinationFireworks = null;
       }
+      const disposedTextures = new Set();
+      const disposeMat = (m) => {
+        if (!m || m === redOnMat || m === redOffMat) return;
+        for (const prop of ['map', 'emissiveMap']) {
+          const tex = m[prop];
+          if (tex && tex instanceof THREE.CanvasTexture && !disposedTextures.has(tex)) {
+            disposedTextures.add(tex);
+            tex.dispose();
+          }
+        }
+        m.dispose();
+      };
       const disposeGroupChildren = (grp) => {
         for (let i = grp.children.length - 1; i >= 0; i--) {
           const obj = grp.children[i];
           grp.remove(obj);
           obj.traverse((child) => {
             if (child.geometry) child.geometry.dispose();
-            if (child.material && child.material !== redOnMat && child.material !== redOffMat) {
-              if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
-              else child.material.dispose();
+            if (child.material) {
+              if (Array.isArray(child.material)) child.material.forEach(disposeMat);
+              else disposeMat(child.material);
             }
           });
         }
@@ -6063,6 +6852,7 @@
       controls.minDistance = THREE.MathUtils.clamp(routeScale * 1.1, 0.28, 0.85);
 
       pads = [];
+      stopLandmarks = [];
       cranes = [];
       routeArcs = [];
       pickAngles = [];
@@ -6073,19 +6863,56 @@
       relQuats = [];
       REST_POSES = [];
 
+      const placedLandmarkNormals = [];
       for (let i = 0; i < N; i++) {
         const s = activeStops[i];
         const n = stopNormals[i];
         const col = STOP_COLORS[i % STOP_COLORS.length];
-        const nearTokyo = Math.hypot(s.lat - 35.68, s.lon - 139.65) < 3.5;
+
+        const nearTokyo = Math.hypot(s.lat - 35.68, s.lon - 139.65) < 2.6;
         const inGreenland = s.lat > 59 && s.lon > -65 && s.lon < -15;
-        const nearParis = Math.hypot(s.lat - 48.86, s.lon - 2.35) < 3.5;
+        const nearParis = Math.hypot(s.lat - 48.86, s.lon - 2.35) < 2.2;
+        const nearWarsaw = Math.hypot(s.lat - 52.23, s.lon - 21.01) < 1.8;
+        const nearLondon = Math.hypot(s.lat - 51.50, s.lon - (-0.12)) < 2.2;
+        const nearNewYork = Math.hypot(s.lat - 40.71, s.lon - (-74.00)) < 2.2;
+        const nearDubai = Math.hypot(s.lat - 25.20, s.lon - 55.27) < 2.5;
+        const nearLAX = Math.hypot(s.lat - 33.94, s.lon - (-118.40)) < 2.4;
+        const nearSFO = Math.hypot(s.lat - 37.77, s.lon - (-122.42)) < 2.2;
+        const nearSydney = Math.hypot(s.lat - (-33.86), s.lon - 151.21) < 2.5;
+        const nearCairo = Math.hypot(s.lat - 30.04, s.lon - 31.23) < 2.5;
 
         pads.push(createLandingPad(n, col, inGreenland, routeScale));
-        if (nearTokyo) createCyberpunkTokyo(n, routeScale);
-        else if (inGreenland) createGreenlandLandmarks(n, routeScale);
-        else if (nearParis) createEiffelTower(n, routeScale);
-        else createAirportTowerLandmark(n, col, routeScale);
+
+        let landmarkId = 'tower';
+        if (nearTokyo) landmarkId = 'tokyo';
+        else if (inGreenland) landmarkId = 'greenland';
+        else if (nearParis) landmarkId = 'paris';
+        else if (nearWarsaw) landmarkId = 'warsaw';
+        else if (nearLondon) landmarkId = 'london';
+        else if (nearNewYork) landmarkId = 'newyork';
+        else if (nearDubai) landmarkId = 'dubai';
+        else if (nearLAX) landmarkId = 'losangeles';
+        else if (nearSFO) landmarkId = 'sanfrancisco';
+        else if (nearSydney) landmarkId = 'sydney';
+        else if (nearCairo) landmarkId = 'cairo';
+        stopLandmarks.push(landmarkId);
+
+        const alreadyPlaced = placedLandmarkNormals.some((prev) => prev.dot(n) > 0.9998);
+        if (!alreadyPlaced) {
+          placedLandmarkNormals.push(n);
+          if (landmarkId === 'tokyo') createCyberpunkTokyo(n, routeScale);
+          else if (landmarkId === 'greenland') createGreenlandLandmarks(n, routeScale);
+          else if (landmarkId === 'paris') createEiffelTower(n, routeScale);
+          else if (landmarkId === 'warsaw') createWarsawPKiN(n, routeScale);
+          else if (landmarkId === 'london') createLondonBigBen(n, routeScale);
+          else if (landmarkId === 'newyork') createNewYorkSkyline(n, routeScale);
+          else if (landmarkId === 'dubai') createDubaiBurjKhalifa(n, routeScale);
+          else if (landmarkId === 'losangeles') createLAXThemeBuilding(n, routeScale);
+          else if (landmarkId === 'sanfrancisco') createGoldenGateBridge(n, routeScale);
+          else if (landmarkId === 'sydney') createSydneyOperaHouse(n, routeScale);
+          else if (landmarkId === 'cairo') createCairoPyramids(n, routeScale);
+          else createAirportTowerLandmark(n, col, routeScale);
+        }
       }
 
       // First pass: per-leg crane scale & base mast height
@@ -6545,7 +7372,8 @@
         padRadius: 0.31 * routeScale,
         stops: activeStops.map((s, i) => ({
           index: i, code: s.code, iata: s.iata, icao: s.icao, name: s.name, city: s.displayCity,
-          lat: s.lat, lon: s.lon, normal: stopNormals[i].toArray()
+          lat: s.lat, lon: s.lon, normal: stopNormals[i].toArray(),
+          landmark: stopLandmarks[i] || 'tower'
         })),
         cranes: cranes.map((c, i) => ({
           index: i,
