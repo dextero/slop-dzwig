@@ -8259,20 +8259,30 @@
       const grabDir = new THREE.Vector3();
       const tmpHit = new THREE.Vector3();
       const tmpQ = new THREE.Quaternion();
+      const tmpQ2 = new THREE.Quaternion();
       const tmpCamPos = new THREE.Vector3();
-      const tmpTarget = new THREE.Vector3();
       const prevCamDir = new THREE.Vector3();
       const curCamDir = new THREE.Vector3();
+      const camForward = new THREE.Vector3();
+      const camRight = new THREE.Vector3();
       const stepAxis = new THREE.Vector3();
       const inertiaAxis = new THREE.Vector3(0, 1, 0);
       const activePointers = new Set();
 
+      const MAX_COS_POLE = 0.985; // ~80° max camera latitude (prevents North/South Pole lookAt flip)
+      const POLE_ZONE_Y = 0.87;   // switch smoothly to pole-safe incremental drag near poles
+      const MIN_INCIDENCE = 0.18; // avoid extreme grazing-limb sensitivity near horizon silhouette
+
       let grabActive = false;
       let grabPointerId = null;
+      let needsReanchor = false;
+      let lastClientX = 0;
+      let lastClientY = 0;
       let inertiaSpeed = 0;
       let lastMoveTs = 0;
 
-      function rayHitEarthSphere(clientX, clientY, allowLimbFallback = false) {
+      // Exact ray-sphere hit returning { dir, incidence } (no unreachable 90° limb projection!)
+      function rayHitEarthDetail(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return null;
         ndc.set(
@@ -8289,33 +8299,60 @@
         if (disc >= 0) {
           const t = -b - Math.sqrt(disc);
           if (t > 0) {
-            return tmpHit.copy(O).addScaledVector(D, t).normalize().clone();
+            const dir = tmpHit.copy(O).addScaledVector(D, t).normalize().clone();
+            // Incidence cosine: 1.0 dead center, 0.0 tangent horizon edge
+            const incidence = Math.max(0, -D.dot(dir));
+            return { dir, incidence };
           }
-        }
-        if (allowLimbFallback) {
-          // Smooth horizon limb projection so dragging past Earth's edge keeps rolling smoothly
-          const tClosest = Math.max(0, -b);
-          const pt = tmpHit.copy(O).addScaledVector(D, tClosest);
-          if (pt.lengthSq() > 1e-6) return pt.normalize().clone();
         }
         return null;
       }
 
-      function applyGuardedRotation(q) {
-        tmpCamPos.copy(camera.position).applyQuaternion(q);
+      function rayHitEarthSphere(clientX, clientY) {
+        const res = rayHitEarthDetail(clientX, clientY);
+        return res ? res.dir : null;
+      }
+
+      function getRadPerPx() {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const hPx = Math.max(1, rect.height);
+        const orbitAlt = Math.max(0.08, camera.position.length() - EARTH_RADIUS);
+        const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+        return (2 * orbitAlt * tanHalfFov) / (hPx * EARTH_RADIUS);
+      }
+
+      function applyGuardedRotation(q, maxAngle = Infinity) {
+        // Enforce strict per-step angular cap so a mouse move can NEVER trigger wild spinning
+        const wClamped = THREE.MathUtils.clamp(q.w, -1, 1);
+        const ang = 2 * Math.acos(Math.abs(wClamped));
+        if (ang < 1e-7) return false;
+        if (Number.isFinite(maxAngle) && ang > maxAngle) {
+          const s = Math.sqrt(Math.max(1e-12, 1 - wClamped * wClamped));
+          const sign = wClamped < 0 ? -1 : 1;
+          stepAxis.set(q.x / s * sign, q.y / s * sign, q.z / s * sign).normalize();
+          q.setFromAxisAngle(stepAxis, maxAngle);
+        }
+
+        const oldPos = camera.position;
+        tmpCamPos.copy(oldPos).applyQuaternion(q);
         const r = tmpCamPos.length();
         if (r < 1e-4) return false;
-        const maxY = r * 0.992;
-        if (Math.abs(tmpCamPos.y) > maxY) {
-          // Clamp near poles cleanly while preserving azimuth
-          const clampedY = Math.sign(tmpCamPos.y) * maxY;
-          const horizScale = Math.sqrt(Math.max(0, r * r - clampedY * clampedY)) / Math.max(1e-6, Math.hypot(tmpCamPos.x, tmpCamPos.z));
-          tmpCamPos.set(tmpCamPos.x * horizScale, clampedY, tmpCamPos.z * horizScale);
-          // Recompute exact clamped rotation from original camera direction
-          prevCamDir.copy(camera.position).normalize();
+
+        // Prevent crossing directly over the North/South Pole (which flips North-Up camera 180°)
+        const oldHorizDot = oldPos.x * tmpCamPos.x + oldPos.z * tmpCamPos.z;
+        const maxY = r * MAX_COS_POLE;
+        if (Math.abs(tmpCamPos.y) > maxY || (Math.abs(oldPos.y) > r * 0.90 && oldHorizDot < 0)) {
+          const clampedY = Math.sign(tmpCamPos.y || oldPos.y || 1) * Math.min(Math.abs(tmpCamPos.y), maxY);
+          const hx = (Math.abs(oldPos.y) > r * 0.90 && oldHorizDot < 0) ? oldPos.x : tmpCamPos.x;
+          const hz = (Math.abs(oldPos.y) > r * 0.90 && oldHorizDot < 0) ? oldPos.z : tmpCamPos.z;
+          const horizLen = Math.max(1e-6, Math.hypot(hx, hz));
+          const targetHoriz = Math.sqrt(Math.max(0, r * r - clampedY * clampedY));
+          tmpCamPos.set((hx / horizLen) * targetHoriz, clampedY, (hz / horizLen) * targetHoriz);
+          prevCamDir.copy(oldPos).normalize();
           curCamDir.copy(tmpCamPos).normalize();
           q.setFromUnitVectors(prevCamDir, curCamDir);
         }
+
         camera.position.applyQuaternion(q);
         controls.target.applyQuaternion(q);
         camera.lookAt(controls.target);
@@ -8323,31 +8360,93 @@
         return true;
       }
 
+      // Smooth, singularity-free incremental drag for cursor outside globe, grazing limb, or polar cap
+      function applyScreenDelta(dx, dy, radPerPx) {
+        const dYaw = THREE.MathUtils.clamp(-dx * radPerPx, -0.35, 0.35);
+        const dPitch = THREE.MathUtils.clamp(-dy * radPerPx, -0.35, 0.35);
+        if (Math.abs(dYaw) < 1e-7 && Math.abs(dPitch) < 1e-7) return;
+
+        camForward.subVectors(controls.target, camera.position).normalize();
+        camRight.crossVectors(camForward, UP);
+        if (camRight.lengthSq() < 1e-6) camRight.set(1, 0, 0);
+        else camRight.normalize();
+
+        // Apply pitch first (guarded against polar flip), then clean azimuth around world UP
+        tmpQ.setFromAxisAngle(camRight, dPitch);
+        tmpQ2.setFromAxisAngle(UP, dYaw);
+        tmpQ.premultiply(tmpQ2);
+        applyGuardedRotation(tmpQ, Math.max(0.015, Math.hypot(dYaw, dPitch) * 1.35));
+      }
+
       function solveToCursor(clientX, clientY) {
+        const dx = clientX - lastClientX;
+        const dy = clientY - lastClientY;
+        lastClientX = clientX;
+        lastClientY = clientY;
+        const pxDist = Math.hypot(dx, dy);
+        if (pxDist < 0.01) return;
+
+        const radPerPx = getRadPerPx();
         prevCamDir.copy(camera.position).normalize();
-        // Two fast fixed-point passes lock the grabbed surface point under the cursor to <0.1px
-        for (let iter = 0; iter < 2; iter++) {
-          const curDir = rayHitEarthSphere(clientX, clientY, true);
-          if (!curDir) break;
-          const dot = THREE.MathUtils.clamp(curDir.dot(grabDir), -1, 1);
-          if (dot > 0.9999999) break;
-          tmpQ.setFromUnitVectors(curDir, grabDir);
-          applyGuardedRotation(tmpQ);
+
+        const hit = rayHitEarthDetail(clientX, clientY);
+        const nearPole = Math.abs(prevCamDir.y) > POLE_ZONE_Y || (hit && Math.abs(hit.dir.y) > 0.92);
+        const onCleanSurface = !!hit && hit.incidence >= MIN_INCIDENCE && !nearPole;
+
+        if (!onCleanSurface) {
+          // Cursor left Earth, grazed the extreme horizon limb, or entered polar cap:
+          // smoothly continue dragging at exact 1:1 screen speed with zero runaway spin!
+          applyScreenDelta(dx, dy, radPerPx);
+          needsReanchor = true;
+        } else {
+          if (needsReanchor) {
+            // Re-entered Earth interior smoothly -> re-anchor grab point without jumping
+            applyScreenDelta(dx, dy, radPerPx);
+            const fresh = rayHitEarthDetail(clientX, clientY);
+            if (fresh) grabDir.copy(fresh.dir);
+            needsReanchor = false;
+          } else {
+            const maxStep = Math.max(0.012, pxDist * radPerPx * 2.5);
+            // Two fast fixed-point passes lock the grabbed surface point under the cursor to <0.5px
+            for (let iter = 0; iter < 2; iter++) {
+              const cur = rayHitEarthDetail(clientX, clientY);
+              if (!cur || cur.incidence < MIN_INCIDENCE) {
+                needsReanchor = true;
+                break;
+              }
+              const dot = THREE.MathUtils.clamp(cur.dir.dot(grabDir), -1, 1);
+              if (dot > 0.9999999) break;
+              tmpQ.setFromUnitVectors(cur.dir, grabDir);
+              const w = THREE.MathUtils.clamp(tmpQ.w, -1, 1);
+              const stepAng = 2 * Math.acos(Math.abs(w));
+              if (stepAng > maxStep) {
+                applyGuardedRotation(tmpQ, maxStep);
+                // Re-anchor if clamped (e.g. grazed polar guard) so subsequent moves never rubber-band
+                const re = rayHitEarthDetail(clientX, clientY);
+                if (re) grabDir.copy(re.dir);
+                break;
+              }
+              applyGuardedRotation(tmpQ, maxStep);
+            }
+          }
         }
+
         const now = performance.now();
-        const dt = Math.max(0.004, Math.min(0.08, (now - lastMoveTs) / 1000));
+        const dt = Math.max(0.008, Math.min(0.08, (now - lastMoveTs) / 1000));
         lastMoveTs = now;
 
         curCamDir.copy(camera.position).normalize();
         const stepDot = THREE.MathUtils.clamp(prevCamDir.dot(curCamDir), -1, 1);
         const stepAng = Math.acos(stepDot);
+        const orbitAlt = Math.max(0.08, camera.position.length() - EARTH_RADIUS);
+        const maxInertia = THREE.MathUtils.clamp(0.14 + orbitAlt * 0.18, 0.16, 2.0);
         if (stepAng > 1e-5) {
           stepAxis.crossVectors(prevCamDir, curCamDir);
           if (stepAxis.lengthSq() > 1e-10) {
             stepAxis.normalize();
             inertiaAxis.lerp(stepAxis, 0.55).normalize();
-            const instVel = Math.min(3.5, stepAng / dt);
-            inertiaSpeed = THREE.MathUtils.lerp(inertiaSpeed, instVel, 0.5);
+            const instVel = Math.min(maxInertia, stepAng / dt);
+            inertiaSpeed = THREE.MathUtils.lerp(inertiaSpeed, instVel, 0.45);
           }
         } else {
           inertiaSpeed *= 0.4;
@@ -8358,6 +8457,7 @@
         if (grabActive) {
           grabActive = false;
           grabPointerId = null;
+          needsReanchor = false;
           controls.enableRotate = true;
           renderer.domElement.style.cursor = '';
           if (!keepInertia || performance.now() - lastMoveTs > 90) {
@@ -8377,8 +8477,8 @@
           return;
         }
         tmpQ.setFromAxisAngle(inertiaAxis, inertiaSpeed * dt);
-        applyGuardedRotation(tmpQ);
-        inertiaSpeed *= Math.exp(-dt * 8.5);
+        applyGuardedRotation(tmpQ, 0.25);
+        inertiaSpeed *= Math.exp(-dt * 9.0);
         if (inertiaSpeed < 1e-3) inertiaSpeed = 0;
       }
 
@@ -8396,12 +8496,16 @@
         if (camMode !== 'free' || followPlane) return;
         if (controls.target.length() >= 0.85) return; // Surface landmark pivot uses local OrbitControls
 
-        const hit = rayHitEarthSphere(e.clientX, e.clientY, false);
+        const hit = rayHitEarthDetail(e.clientX, e.clientY);
         if (!hit) return; // Dragging in empty space uses analytical zoom-scaled OrbitControls
 
-        grabDir.copy(hit);
+        grabDir.copy(hit.dir);
         grabActive = true;
         grabPointerId = e.pointerId;
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        const camY = Math.abs(camera.position.y) / Math.max(1e-4, camera.position.length());
+        needsReanchor = hit.incidence < MIN_INCIDENCE || camY > POLE_ZONE_Y || Math.abs(hit.dir.y) > 0.92;
         lastMoveTs = performance.now();
         inertiaSpeed = 0;
         controls.enableRotate = false;
@@ -8447,7 +8551,7 @@
       };
     })();
     window.__rayHitEarth = (x, y) => {
-      const hit = globeGrab.rayHitEarthSphere(x, y, false);
+      const hit = globeGrab.rayHitEarthSphere(x, y);
       return hit ? hit.multiplyScalar(EARTH_RADIUS).toArray() : null;
     };
     window.__projectPoint = (ptArr) => {
