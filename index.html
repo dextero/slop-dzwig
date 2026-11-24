@@ -631,6 +631,140 @@
       text-align: right;
     }
 
+    /* Collapsible Industrial Telemetry Diagnostics */
+    .telemetry-wrap {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(56, 189, 248, 0.16);
+    }
+
+    .telemetry-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 7px;
+      border-radius: 8px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      color: #bae6fd;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .telemetry-toggle:hover {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+
+    .telemetry-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tel-status-pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 9.5px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.16);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      color: #6ee7b7;
+    }
+
+    .tel-status-pill.mach {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(56, 189, 248, 0.72);
+      color: #7dd3fc;
+    }
+
+    .tel-status-pill.warn {
+      background: rgba(251, 191, 36, 0.22);
+      border-color: rgba(251, 191, 36, 0.72);
+      color: #fde68a;
+    }
+
+    .tel-status-pill.alert {
+      background: rgba(244, 63, 94, 0.24);
+      border-color: rgba(244, 63, 94, 0.78);
+      color: #fda4af;
+    }
+
+    .telemetry-body {
+      margin-top: 7px;
+      padding: 8px 9px;
+      border-radius: 10px;
+      background: rgba(3, 8, 18, 0.72);
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.48;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .telemetry-wrap.collapsed .telemetry-body {
+      display: none;
+    }
+
+    .tel-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .tel-k {
+      color: #7ea0c8;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    .tel-v {
+      color: #e2e8f0;
+      font-weight: 600;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tel-v.cyan { color: #7dd3fc; }
+    .tel-v.green { color: #34d399; }
+    .tel-v.gold { color: #fbbf24; }
+    .tel-v.pink { color: #fb7185; }
+
+    .tel-scope-wrap {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(148, 197, 255, 0.16);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tel-scope-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #64748b;
+    }
+
+    #telemetry-scope {
+      width: 100%;
+      height: 26px;
+      display: block;
+      border-radius: 5px;
+      background: rgba(5, 12, 24, 0.85);
+    }
+
     #btn-audio {
       display: inline-flex;
       align-items: center;
@@ -1160,6 +1294,35 @@
       <input id="audio-slider" type="range" min="0" max="100" step="1" value="75" aria-label="Głośność dźwięku" />
       <span id="audio-vol-label">Wycisz.</span>
       <button id="btn-audio-hud" class="mini-btn" title="Włącz/wyłącz dźwięk (skrót: M)">Włącz</button>
+    </div>
+
+    <div class="telemetry-wrap" id="telemetry-wrap">
+      <button class="telemetry-toggle" id="btn-telemetry" type="button" title="Rozwiń/zwiń telemetrię dźwigu (klawisz T)">
+        <span class="telemetry-toggle-left">
+          <span>📟</span>
+          <span id="tel-crane-head">DŹWIG-1 TELEMETRIA</span>
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span class="tel-status-pill" id="tel-pill">SYS OK</span>
+          <span id="tel-chevron">▾</span>
+        </span>
+      </button>
+      <div class="telemetry-body" id="telemetry-body">
+        <div class="tel-row"><span class="tel-k">NACIĄG LINY:</span><span class="tel-v cyan" id="tel-tension">-- kN</span></div>
+        <div class="tel-row"><span class="tel-k">PRĘDKOŚĆ OBR.:</span><span class="tel-v" id="tel-rpm">0.000 RPM</span></div>
+        <div class="tel-row"><span class="tel-k">PRZECIĄŻENIE:</span><span class="tel-v" id="tel-gforce">+1.00 G</span></div>
+        <div class="tel-row"><span class="tel-k">CIŚNIENIE OLEJU:</span><span class="tel-v" id="tel-oil">820 BAR</span></div>
+        <div class="tel-row"><span class="tel-k">DŁUGOŚĆ LINY:</span><span class="tel-v" id="tel-cable">-- km</span></div>
+        <div class="tel-row"><span class="tel-k">EMISJA CO₂:</span><span class="tel-v green" id="tel-co2">0.00 kg (100% Dźwignia)</span></div>
+        <div class="tel-row"><span class="tel-k">STATUS LOTNICZY:</span><span class="tel-v gold" id="tel-icao">BRAK NARUSZENIA</span></div>
+        <div class="tel-scope-wrap">
+          <div class="tel-scope-legend">
+            <span style="color:#38bdf8">━ Naciąg liny</span>
+            <span style="color:#fbbf24">━ Przeciążenie G</span>
+          </div>
+          <canvas id="telemetry-scope" width="320" height="26"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -7524,6 +7687,236 @@
     window.__manual = manualCtrl;
 
     // -------------------------------------------------------------------------
+    // 11c. Industrial Telemetry HUD & "Slop Engineering" Live Diagnostics
+    // -------------------------------------------------------------------------
+    function createTelemetryController() {
+      const wrap = document.getElementById('telemetry-wrap');
+      const btn = document.getElementById('btn-telemetry');
+      const chevron = document.getElementById('tel-chevron');
+      const headEl = document.getElementById('tel-crane-head');
+      const pillEl = document.getElementById('tel-pill');
+      const tensionEl = document.getElementById('tel-tension');
+      const rpmEl = document.getElementById('tel-rpm');
+      const gforceEl = document.getElementById('tel-gforce');
+      const oilEl = document.getElementById('tel-oil');
+      const cableEl = document.getElementById('tel-cable');
+      const co2El = document.getElementById('tel-co2');
+      const icaoEl = document.getElementById('tel-icao');
+      const canvas = document.getElementById('telemetry-scope');
+      const sctx = canvas ? canvas.getContext('2d') : null;
+
+      let collapsed = window.innerWidth <= 960;
+      const HISTORY_LEN = 64;
+      const tensionHist = new Float32Array(HISTORY_LEN);
+      const gHist = new Float32Array(HISTORY_LEN);
+      let histHead = 0;
+      let sampleAcc = 0.033;
+      let textAcc = 0.08;
+      let prevLoaded = null;
+      let smoothTension = 0.08;
+      let smoothG = 1.0;
+      let smoothOil = 820;
+      let lastSnapshot = {};
+
+      function syncCollapse() {
+        wrap.classList.toggle('collapsed', collapsed);
+        chevron.textContent = collapsed ? '▸' : '▾';
+      }
+
+      function toggle() {
+        collapsed = !collapsed;
+        syncCollapse();
+      }
+
+      btn.addEventListener('click', toggle);
+      window.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (e.key === 't' || e.key === 'T') {
+          e.preventDefault();
+          toggle();
+        }
+      });
+      syncCollapse();
+
+      function drawScope() {
+        if (!sctx || collapsed) return;
+        const w = canvas.width;
+        const h = canvas.height;
+        sctx.clearRect(0, 0, w, h);
+
+        // Subtle oscilloscope grid
+        sctx.strokeStyle = 'rgba(148, 197, 255, 0.10)';
+        sctx.lineWidth = 1;
+        sctx.beginPath();
+        sctx.moveTo(0, h * 0.5);
+        sctx.lineTo(w, h * 0.5);
+        for (let gx = 40; gx < w; gx += 40) {
+          sctx.moveTo(gx, 0);
+          sctx.lineTo(gx, h);
+        }
+        sctx.stroke();
+
+        const drawTrace = (arr, color) => {
+          sctx.strokeStyle = color;
+          sctx.lineWidth = 1.4;
+          sctx.beginPath();
+          for (let i = 0; i < HISTORY_LEN; i++) {
+            const idx = (histHead + i) % HISTORY_LEN;
+            const x = (i / (HISTORY_LEN - 1)) * w;
+            const y = h - 3 - THREE.MathUtils.clamp(arr[idx], 0, 1) * (h - 6);
+            if (i === 0) sctx.moveTo(x, y);
+            else sctx.lineTo(x, y);
+          }
+          sctx.stroke();
+        };
+
+        drawTrace(tensionHist, '#38bdf8');
+        drawTrace(gHist, '#fbbf24');
+      }
+
+      function update(data, dt) {
+        const cNum = (data.craneIdx ?? 0) + 1;
+        const loaded = !!data.isLoaded;
+        const hoistAbs = Math.abs(data.hoistSpeed || 0);
+        const slewTip = Math.abs(data.slewTipSpeed || 0);
+        const omega = Math.abs(data.omega || 0);
+        const sway = Math.max(0, data.maxSway || 0);
+        const cableKm = Math.max(0, Math.round((data.cableLen || 0) * 1274));
+
+        // Real-time physically derived industrial telemetry
+        const rpm = (omega * 60) / (Math.PI * 2);
+        const mach = slewTip * 3.15;
+        const targetG = loaded
+          ? THREE.MathUtils.clamp(1.0 + sway * 5.2 + hoistAbs * 1.15 + Math.pow(slewTip, 1.4) * 0.68, 1.0, 6.4)
+          : 1.0;
+        smoothG = THREE.MathUtils.lerp(smoothG, targetG, Math.min(1, Math.max(dt, 1 / 60) * 7));
+
+        const baseTensionKN = loaded ? 41200 : 2840;
+        const dynTensionKN = loaded
+          ? (smoothG - 1.0) * 8600 + (data.hoistDir > 0 ? hoistAbs * 6200 : -hoistAbs * 2100)
+          : hoistAbs * 950;
+        const tensionKN = Math.max(1200, Math.round(baseTensionKN + dynTensionKN));
+        const tensionNorm = THREE.MathUtils.clamp(tensionKN / 68000, 0.04, 1.0);
+        smoothTension = THREE.MathUtils.lerp(smoothTension, tensionNorm, Math.min(1, Math.max(dt, 1 / 60) * 8));
+
+        const targetOil = 820 + (loaded ? 260 : 0) + hoistAbs * 520 + slewTip * 280;
+        smoothOil = THREE.MathUtils.lerp(smoothOil, targetOil, Math.min(1, Math.max(dt, 1 / 60) * 5));
+        const oilBar = Math.round(smoothOil);
+
+        // Push scope samples at ~30 Hz
+        sampleAcc += Math.max(dt, 0.016);
+        if (sampleAcc >= 0.033) {
+          sampleAcc = 0;
+          tensionHist[histHead] = smoothTension;
+          gHist[histHead] = THREE.MathUtils.clamp((smoothG - 0.85) / 3.8, 0.04, 1.0);
+          histHead = (histHead + 1) % HISTORY_LEN;
+          drawScope();
+        }
+
+        // Refresh DOM text at crisp ~12 Hz (or immediately on load state change)
+        textAcc += Math.max(dt, 0.016);
+        if (textAcc < 0.08 && loaded === prevLoaded) return;
+        textAcc = 0;
+        prevLoaded = loaded;
+
+        headEl.textContent = `DŹWIG-${cNum} TELEMETRIA`;
+
+        // Dynamic status pill
+        if (data.isManual) {
+          pillEl.textContent = smoothG > 3.0 ? 'G-ALARM!' : 'TRYB RĘCZNY';
+          pillEl.className = 'tel-status-pill ' + (smoothG > 3.0 ? 'alert' : 'warn');
+        } else if (mach >= 1.0) {
+          pillEl.textContent = `MACH ${mach.toFixed(1)}`;
+          pillEl.className = 'tel-status-pill mach';
+        } else if (data.isFinale) {
+          pillEl.textContent = 'FINAŁ OK';
+          pillEl.className = 'tel-status-pill';
+        } else if (data.paused) {
+          pillEl.textContent = 'PAUZA';
+          pillEl.className = 'tel-status-pill warn';
+        } else {
+          pillEl.textContent = 'SYS OK';
+          pillEl.className = 'tel-status-pill';
+        }
+
+        const cableAlloy = loaded ? 'Stal tytanowa' : 'Bieg jałowy';
+        tensionEl.textContent = `${tensionKN.toLocaleString('pl-PL')} kN (${cableAlloy})`;
+        tensionEl.className = 'tel-v ' + (tensionKN > 52000 ? 'gold' : 'cyan');
+
+        const tipNote = mach >= 2.2
+          ? `Mach ${mach.toFixed(1)} 🔥`
+          : (mach >= 1.0 ? `Mach ${mach.toFixed(1)}` : (slewTip > 0.04 ? `${Math.round(mach * 1225)} km/h` : 'Spoczynek'));
+        rpmEl.textContent = `${rpm.toFixed(3)} RPM (${tipNote})`;
+        rpmEl.className = 'tel-v ' + (mach >= 1.0 ? 'cyan' : '');
+
+        let gLore = 'Kawa podana';
+        let gCls = 'green';
+        if (loaded) {
+          if (smoothG >= 3.2) { gLore = 'Pasażerowie krzyczą!'; gCls = 'pink'; }
+          else if (smoothG >= 2.0) { gLore = 'Wózek z napojami lata'; gCls = 'gold'; }
+          else if (smoothG >= 1.25) { gLore = 'Zapiąć pasy'; gCls = 'cyan'; }
+          else { gLore = 'Stabilny zwis'; gCls = 'green'; }
+        }
+        gforceEl.textContent = `+${smoothG.toFixed(2)} G (${gLore})`;
+        gforceEl.className = `tel-v ${gCls}`;
+
+        oilEl.textContent = `${oilBar.toLocaleString('pl-PL')} BAR${oilBar > 1350 ? ' • TURBO' : ''}`;
+        oilEl.className = 'tel-v ' + (oilBar > 1400 ? 'gold' : '');
+
+        cableEl.textContent = `${cableKm.toLocaleString('pl-PL')} km`;
+
+        co2El.textContent = data.hoistDir < -0.05
+          ? '0.00 kg (Rekuperacja ⚡)'
+          : '0.00 kg (100% Czysta Dźwignia)';
+
+        let icaoText = 'BRAK NARUSZENIA (PARKOWANIE)';
+        let icaoCls = 'gold';
+        if (data.isManual) {
+          icaoText = loaded ? 'BHP WYŁĄCZONE (WISI RĘCZNIE)' : 'TRYB OPERATORA (BEZ LOTU)';
+          icaoCls = 'pink';
+        } else if (data.isFinale) {
+          icaoText = 'MISJA OK (0.0 KM LOTU)';
+          icaoCls = 'green';
+        } else if (loaded && mach >= 2.2) {
+          icaoText = 'ICAO ZDEZORIENTOWANE (NIE LECI)';
+          icaoCls = 'cyan';
+        } else if (loaded && slewTip > 0.08) {
+          icaoText = 'BRAK NARUSZENIA (NIE LECI)';
+          icaoCls = 'gold';
+        } else if (loaded) {
+          icaoText = 'BRAK NARUSZENIA (WINDA PIONOWA)';
+          icaoCls = 'cyan';
+        }
+        icaoEl.textContent = icaoText;
+        icaoEl.className = `tel-v ${icaoCls}`;
+
+        lastSnapshot = {
+          collapsed,
+          crane: cNum,
+          tensionKN,
+          rpm: Math.round(rpm * 1000) / 1000,
+          mach: Math.round(mach * 10) / 10,
+          gForce: Math.round(smoothG * 100) / 100,
+          oilBar,
+          cableKm,
+          icaoText
+        };
+      }
+
+      return {
+        toggle,
+        update,
+        isCollapsed: () => collapsed,
+        getSnapshot: () => ({ ...lastSnapshot })
+      };
+    }
+
+    const telemetryCtrl = createTelemetryController();
+    window.__telemetry = telemetryCtrl;
+
+    // -------------------------------------------------------------------------
     // 12. Main Render Loop (120 Hz Substeps + Dynamic Shadow Frustum + FPS Guard)
     // -------------------------------------------------------------------------
     rebuildRoute(DEFAULT_STOPS, false);
@@ -7549,12 +7942,18 @@
       lastTime = now;
 
       let state;
+      let telData;
       if (manualCtrl.isActive()) {
         state = manualCtrl.stepAndApply(dt);
         updateHUD(state);
 
         const kin = manualCtrl.getKinematics();
-        const activeCrane = cranes[state.step.legIdx ?? 0] || cranes[0];
+        const activeIdx = state.step.legIdx ?? 0;
+        const activeCrane = cranes[activeIdx] || cranes[0];
+        const curTrolley = activeCrane ? activeCrane.trolleyWorld(state.S['a' + (activeIdx + 1)], _T) : _T;
+        const cableLen = activeCrane ? curTrolley.distanceTo(activeCrane.hookGroup.position) : 0;
+        const omega = activeCrane ? kin.slewTipSpeed / Math.max(0.2, activeCrane.getTrolleyDist()) : 0;
+
         audioEngine.update({
           paused: false,
           speedMultiplier: 1.0,
@@ -7569,6 +7968,19 @@
           camToPlane: camera.position.distanceTo(planeInfo.pos),
           camToCrane: activeCrane ? camera.position.distanceTo(activeCrane.hookGroup.position) : 10
         });
+        telData = {
+          craneIdx: activeIdx,
+          isLoaded: state.S.att > 0,
+          isManual: true,
+          isFinale: !!state.step.finale,
+          paused: false,
+          hoistSpeed: kin.hoistSpeed,
+          hoistDir: kin.hoistDir,
+          slewTipSpeed: kin.slewTipSpeed,
+          omega,
+          maxSway: kin.maxSway,
+          cableLen
+        };
       } else {
         if (isPlaying && dt > 0) {
           const simDt = dt * speedMultiplier;
@@ -7584,7 +7996,7 @@
         state = applyState(simTime, isPlaying ? dt * speedMultiplier : 0, isPlaying);
         updateHUD(state);
 
-        // Feed real-time physical kinematics into the Procedural Web Audio Engine
+        // Feed real-time physical kinematics into Audio Engine & Telemetry HUD
         {
           const eps = 1 / 60;
           const tA = Math.max(0, simTime - eps);
@@ -7595,6 +8007,7 @@
           let maxHoistSpeed = 0;
           let hoistDir = 0;
           let maxSlewTipSpeed = 0;
+          let maxOmega = 0;
           let maxSway = 0;
           for (let i = 0; i < cranes.length; i++) {
             const c = cranes[i];
@@ -7605,11 +8018,18 @@
             }
             const da = wrapAngle(sB['a' + (i + 1)] - sA['a' + (i + 1)]) / span * speedMultiplier;
             const tipV = Math.abs(da) * c.trolleyDist;
-            if (tipV > maxSlewTipSpeed) maxSlewTipSpeed = tipV;
+            if (tipV > maxSlewTipSpeed) {
+              maxSlewTipSpeed = tipV;
+              maxOmega = Math.abs(da);
+            }
             const sway = pend[i] ? pend[i].o.length() / Math.max(0.15, c.height) : 0;
             if (sway > maxSway) maxSway = sway;
           }
-          const activeCrane = cranes[state.step.legIdx ?? 0] || cranes[0];
+          const activeIdx = state.step.legIdx ?? 0;
+          const activeCrane = cranes[activeIdx] || cranes[0];
+          const curTrolley = activeCrane ? activeCrane.trolleyWorld(state.S['a' + (activeIdx + 1)], _T) : _T;
+          const cableLen = activeCrane ? curTrolley.distanceTo(activeCrane.hookGroup.position) : 0;
+
           audioEngine.update({
             paused: !isPlaying,
             speedMultiplier,
@@ -7624,8 +8044,22 @@
             camToPlane: camera.position.distanceTo(planeInfo.pos),
             camToCrane: activeCrane ? camera.position.distanceTo(activeCrane.hookGroup.position) : 10
           });
+          telData = {
+            craneIdx: activeIdx,
+            isLoaded: state.S.att > 0,
+            isManual: false,
+            isFinale: !!state.step.finale,
+            paused: !isPlaying,
+            hoistSpeed: isPlaying ? maxHoistSpeed : 0,
+            hoistDir: isPlaying ? hoistDir : 0,
+            slewTipSpeed: isPlaying ? maxSlewTipSpeed : 0,
+            omega: isPlaying ? maxOmega : 0,
+            maxSway,
+            cableLen
+          };
         }
       }
+      telemetryCtrl.update(telData, dt);
 
       // Drift volumetric clouds, auroras, ocean wakes, high-speed trails & star scintillation
       const sec = now * 0.001;
