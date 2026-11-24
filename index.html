@@ -7117,6 +7117,7 @@
       }
       hideIntro();
       clearSkyHover();
+      if (typeof globeGrab !== 'undefined') { globeGrab.cancelGrab(false); globeGrab.stopInertia(); }
       followPlane = false;
       btnFollow.classList.remove('active');
       camTransition = null;
@@ -7156,6 +7157,7 @@
       const preset = CAM_PRESETS[name];
       if (!preset) return;
       hideIntro();
+      if (typeof globeGrab !== 'undefined') { globeGrab.cancelGrab(false); globeGrab.stopInertia(); }
       exitActionCamToFree(true);
       followPlane = false;
       btnFollow.classList.remove('active');
@@ -8009,6 +8011,7 @@
     }
 
     window.__setCamera = (posArr, targetArr) => {
+      if (typeof globeGrab !== 'undefined') { globeGrab.cancelGrab(false); globeGrab.stopInertia(); }
       exitActionCamToFree(true);
       camTransition = null;
       followPlane = false;
@@ -8241,12 +8244,221 @@
       clearSkyHover();
       hideIntro();
       camTransition = null;
+      if (typeof globeGrab !== 'undefined') globeGrab.stopInertia();
       if (followPlane) {
         followPlane = false;
         btnFollow.classList.remove('active');
       }
       setActiveCamBtn(null);
     });
+
+    // 1:1 Ray-Sphere Globe Catch-and-Drag Controller (Google Earth-style surface grab)
+    const globeGrab = (() => {
+      const raycaster = new THREE.Raycaster();
+      const ndc = new THREE.Vector2();
+      const grabDir = new THREE.Vector3();
+      const tmpHit = new THREE.Vector3();
+      const tmpQ = new THREE.Quaternion();
+      const tmpCamPos = new THREE.Vector3();
+      const tmpTarget = new THREE.Vector3();
+      const prevCamDir = new THREE.Vector3();
+      const curCamDir = new THREE.Vector3();
+      const stepAxis = new THREE.Vector3();
+      const inertiaAxis = new THREE.Vector3(0, 1, 0);
+      const activePointers = new Set();
+
+      let grabActive = false;
+      let grabPointerId = null;
+      let inertiaSpeed = 0;
+      let lastMoveTs = 0;
+
+      function rayHitEarthSphere(clientX, clientY, allowLimbFallback = false) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        ndc.set(
+          ((clientX - rect.left) / rect.width) * 2 - 1,
+          -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+        camera.updateMatrixWorld(true);
+        raycaster.setFromCamera(ndc, camera);
+        const O = raycaster.ray.origin;
+        const D = raycaster.ray.direction;
+        const b = O.dot(D);
+        const c = O.dot(O) - EARTH_RADIUS * EARTH_RADIUS;
+        const disc = b * b - c;
+        if (disc >= 0) {
+          const t = -b - Math.sqrt(disc);
+          if (t > 0) {
+            return tmpHit.copy(O).addScaledVector(D, t).normalize().clone();
+          }
+        }
+        if (allowLimbFallback) {
+          // Smooth horizon limb projection so dragging past Earth's edge keeps rolling smoothly
+          const tClosest = Math.max(0, -b);
+          const pt = tmpHit.copy(O).addScaledVector(D, tClosest);
+          if (pt.lengthSq() > 1e-6) return pt.normalize().clone();
+        }
+        return null;
+      }
+
+      function applyGuardedRotation(q) {
+        tmpCamPos.copy(camera.position).applyQuaternion(q);
+        const r = tmpCamPos.length();
+        if (r < 1e-4) return false;
+        const maxY = r * 0.992;
+        if (Math.abs(tmpCamPos.y) > maxY) {
+          // Clamp near poles cleanly while preserving azimuth
+          const clampedY = Math.sign(tmpCamPos.y) * maxY;
+          const horizScale = Math.sqrt(Math.max(0, r * r - clampedY * clampedY)) / Math.max(1e-6, Math.hypot(tmpCamPos.x, tmpCamPos.z));
+          tmpCamPos.set(tmpCamPos.x * horizScale, clampedY, tmpCamPos.z * horizScale);
+          // Recompute exact clamped rotation from original camera direction
+          prevCamDir.copy(camera.position).normalize();
+          curCamDir.copy(tmpCamPos).normalize();
+          q.setFromUnitVectors(prevCamDir, curCamDir);
+        }
+        camera.position.applyQuaternion(q);
+        controls.target.applyQuaternion(q);
+        camera.lookAt(controls.target);
+        camera.updateMatrixWorld(true);
+        return true;
+      }
+
+      function solveToCursor(clientX, clientY) {
+        prevCamDir.copy(camera.position).normalize();
+        // Two fast fixed-point passes lock the grabbed surface point under the cursor to <0.1px
+        for (let iter = 0; iter < 2; iter++) {
+          const curDir = rayHitEarthSphere(clientX, clientY, true);
+          if (!curDir) break;
+          const dot = THREE.MathUtils.clamp(curDir.dot(grabDir), -1, 1);
+          if (dot > 0.9999999) break;
+          tmpQ.setFromUnitVectors(curDir, grabDir);
+          applyGuardedRotation(tmpQ);
+        }
+        const now = performance.now();
+        const dt = Math.max(0.004, Math.min(0.08, (now - lastMoveTs) / 1000));
+        lastMoveTs = now;
+
+        curCamDir.copy(camera.position).normalize();
+        const stepDot = THREE.MathUtils.clamp(prevCamDir.dot(curCamDir), -1, 1);
+        const stepAng = Math.acos(stepDot);
+        if (stepAng > 1e-5) {
+          stepAxis.crossVectors(prevCamDir, curCamDir);
+          if (stepAxis.lengthSq() > 1e-10) {
+            stepAxis.normalize();
+            inertiaAxis.lerp(stepAxis, 0.55).normalize();
+            const instVel = Math.min(3.5, stepAng / dt);
+            inertiaSpeed = THREE.MathUtils.lerp(inertiaSpeed, instVel, 0.5);
+          }
+        } else {
+          inertiaSpeed *= 0.4;
+        }
+      }
+
+      function cancelGrab(keepInertia = false) {
+        if (grabActive) {
+          grabActive = false;
+          grabPointerId = null;
+          controls.enableRotate = true;
+          renderer.domElement.style.cursor = '';
+          if (!keepInertia || performance.now() - lastMoveTs > 90) {
+            inertiaSpeed = 0;
+          }
+        }
+      }
+
+      function stopInertia() {
+        inertiaSpeed = 0;
+      }
+
+      function stepInertia(dt) {
+        if (grabActive || inertiaSpeed <= 1e-4) return;
+        if (camMode !== 'free' || camTransition || followPlane || controls.target.length() >= 0.85) {
+          inertiaSpeed = 0;
+          return;
+        }
+        tmpQ.setFromAxisAngle(inertiaAxis, inertiaSpeed * dt);
+        applyGuardedRotation(tmpQ);
+        inertiaSpeed *= Math.exp(-dt * 8.5);
+        if (inertiaSpeed < 1e-3) inertiaSpeed = 0;
+      }
+
+      // Capture-phase pointerdown intercepts before OrbitControls starts rotating
+      renderer.domElement.addEventListener('pointerdown', (e) => {
+        activePointers.add(e.pointerId);
+        inertiaSpeed = 0;
+
+        // Multi-touch (pinch zoom) or non-left click -> hand off cleanly to OrbitControls
+        if (e.button !== 0 || activePointers.size > 1) {
+          cancelGrab(false);
+          return;
+        }
+
+        if (camMode !== 'free' || followPlane) return;
+        if (controls.target.length() >= 0.85) return; // Surface landmark pivot uses local OrbitControls
+
+        const hit = rayHitEarthSphere(e.clientX, e.clientY, false);
+        if (!hit) return; // Dragging in empty space uses analytical zoom-scaled OrbitControls
+
+        grabDir.copy(hit);
+        grabActive = true;
+        grabPointerId = e.pointerId;
+        lastMoveTs = performance.now();
+        inertiaSpeed = 0;
+        controls.enableRotate = false;
+        clearSkyHover();
+        hideIntro();
+        camTransition = null;
+        setActiveCamBtn(null);
+        renderer.domElement.style.cursor = 'grabbing';
+      }, { capture: true });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!grabActive || e.pointerId !== grabPointerId) return;
+        if (e.buttons === 0 && e.pointerType === 'mouse') {
+          cancelGrab(true);
+          return;
+        }
+        solveToCursor(e.clientX, e.clientY);
+      });
+
+      const onPointerEnd = (e) => {
+        activePointers.delete(e.pointerId);
+        if (grabActive && e.pointerId === grabPointerId) {
+          cancelGrab(true);
+        }
+      };
+      window.addEventListener('pointerup', onPointerEnd);
+      window.addEventListener('pointercancel', onPointerEnd);
+      window.addEventListener('blur', () => {
+        activePointers.clear();
+        cancelGrab(false);
+      });
+
+      renderer.domElement.addEventListener('wheel', () => {
+        inertiaSpeed = 0;
+      }, { passive: true });
+
+      return {
+        isActive: () => grabActive,
+        stepInertia,
+        stopInertia,
+        cancelGrab,
+        rayHitEarthSphere
+      };
+    })();
+    window.__rayHitEarth = (x, y) => {
+      const hit = globeGrab.rayHitEarthSphere(x, y, false);
+      return hit ? hit.multiplyScalar(EARTH_RADIUS).toArray() : null;
+    };
+    window.__projectPoint = (ptArr) => {
+      const v = new THREE.Vector3(ptArr[0], ptArr[1], ptArr[2]).project(camera);
+      const rect = renderer.domElement.getBoundingClientRect();
+      return {
+        x: (v.x * 0.5 + 0.5) * rect.width + rect.left,
+        y: (-v.y * 0.5 + 0.5) * rect.height + rect.top,
+        z: v.z
+      };
+    };
 
     window.addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -9959,6 +10171,8 @@
           const desiredCamPos = radial.multiplyScalar(9.8 + Math.min(planeInfo.alt, 2.0)).add(new THREE.Vector3(0, 1.2, 0));
           controls.target.lerp(desiredTarget, Math.min(1, dt * 3.5));
           camera.position.lerp(desiredCamPos, Math.min(1, dt * 2.6));
+        } else {
+          globeGrab.stepInertia(dt);
         }
 
         // Prevent diving inside Earth surface during close-ups
@@ -9967,20 +10181,21 @@
           camera.position.setLength(EARTH_RADIUS + minCamAlt);
         }
 
-        // Scale OrbitControls rotation & zoom speed dynamically with zoom altitude
-        // so dragging the globe stays silky and controllable even at extreme close-ups
+        // Exact analytical 1:1 surface-tracking rotateSpeed fallback (when dragging empty space
+        // outside Earth or orbiting a local landmark): Δφ_orbit == Δφ_surface under cursor!
         const orbitAlt = Math.max(0.05, camera.position.length() - EARTH_RADIUS);
         const orbitDist = camera.position.distanceTo(controls.target);
         const surfacePivotBlend = THREE.MathUtils.clamp((controls.target.length() - 0.8) / 3.2, 0, 1);
+        const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
         const globeRotateSpeed = THREE.MathUtils.clamp(
-          0.025 + 0.675 * Math.pow(THREE.MathUtils.clamp(orbitAlt / 10.5, 0, 1.35), 0.92),
-          0.035,
-          0.85
+          (orbitAlt * tanHalfFov) / (Math.PI * EARTH_RADIUS),
+          0.006,
+          0.75
         );
         const localRotateSpeed = THREE.MathUtils.clamp(
-          0.22 + 0.42 * THREE.MathUtils.clamp(orbitDist / 4.2, 0, 1),
-          0.22,
-          0.64
+          0.20 + 0.38 * THREE.MathUtils.clamp(orbitDist / 4.2, 0, 1),
+          0.20,
+          0.58
         );
         controls.rotateSpeed = THREE.MathUtils.lerp(globeRotateSpeed, localRotateSpeed, surfacePivotBlend);
         controls.zoomSpeed = THREE.MathUtils.clamp(
